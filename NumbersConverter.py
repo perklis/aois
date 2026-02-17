@@ -49,21 +49,28 @@ class NumbersConverter:
 
     def get_additional_code(self) -> str:
         n = self.number
-
+    
+        # 32-битное представление для +|n|: 0 + 31 бит модуля
+        mag = self.decimal_to_binary_value(abs(n))
+        if len(mag) > self.ABS_BITS:
+            print(f"Внимание: {n} не помещается в 32-битный дополнительный код без переполнения")
+            mag = mag[-self.ABS_BITS:]
+        else:
+            mag = mag.zfill(self.ABS_BITS)
+    
+        positive_32 = "0" + mag  # это +|n| в 32 битах
+    
         if n >= 0:
-            return self.direct_code
+            return positive_32
+    
+        # n < 0: инверсия всех 32 бит + 1
+        inverted = ""
+        for bit in positive_32:
+            inverted += "0" if bit == "1" else "1"
+    
+        plus1, _ = self._add_bits_32(inverted, "0" * 31 + "1")
+        return plus1
 
-        reverse = self.reversed_code
-
-        result = ""
-        carry = 1
-        for i in range(self.BITS - 1, -1, -1):
-            bit = int(reverse[i])
-            new_bit = (bit + carry) % 2
-            carry = (bit + carry) // 2
-            result = str(new_bit) + result
-
-        return result
     
     @staticmethod
     def _add_bits_32(a: str, b: str) -> tuple[str, int]:
