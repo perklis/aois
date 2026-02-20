@@ -1,5 +1,6 @@
-from NumbersConverter import NumbersConverter 
+from NumbersConverter import NumbersConverter
 from Calculator import Calculator
+
 
 class Menu:
     def __init__(self) -> None:
@@ -15,6 +16,7 @@ class Menu:
                 self.print_menu()
                 choice = input("Выберите пункт: ").strip()
                 self.handle_choice(choice)
+
             except ValueError as e:
                 print("ValueError:", e)
 
@@ -39,10 +41,11 @@ class Menu:
         print("\nВыберите:")
         print(f"Текущие числа: a={self.a}, b={self.b}")
         print("1. Перевод в двоичную систему")
-        print("2. Сложение a + b")
-        print("3. Вычитание a - b")
-        print("4. Умножение a * b")
+        print("2. Сложение a + b (доп. код)")
+        print("3. Вычитание a - b (доп. код)")
+        print("4. Умножение a * b (сдвиг + сложение)")
         print("5. Ввести числа заново")
+        print("6. Деление a ÷ b (двоичное столбиком)")
         print("0. Выход")
 
     def handle_choice(self, choice: str) -> None:
@@ -53,9 +56,11 @@ class Menu:
         elif choice == "3":
             self.action_sub()
         elif choice == "4":
-            self.action_mul_direct()
+            self.action_mul()
         elif choice == "5":
             self.input_two_numbers()
+        elif choice == "6":
+            self.action_divide()
         elif choice == "0":
             self.action_exit()
         else:
@@ -74,51 +79,76 @@ class Menu:
     def action_add(self) -> None:
         self.ensure_numbers()
         assert self.a is not None and self.b is not None
-        num_a = NumbersConverter(self.a)
-        num_b = NumbersConverter(self.b)
 
-        calc = Calculator(num_a, num_b)
+        calc = Calculator(
+            NumbersConverter(self.a),
+            NumbersConverter(self.b)
+        )
+
         result, overflow = calc.add()
 
-        print("\nСложение в дополнительном коде:")
+        print("\nСложение:")
         print(f"{self.a} + {self.b} = {result.number}")
         print(result)
-        if overflow:
-            print("Переполнение. Результат неверный в 32 битах")
 
+        if overflow:
+            print("Переполнение! Результат не помещается в 32 бита.")
 
     def action_sub(self) -> None:
-        """Вычитание a - b через отрицание и сложение."""
         self.ensure_numbers()
         assert self.a is not None and self.b is not None
 
-        num_a = NumbersConverter(self.a)
-        num_b = NumbersConverter(self.b)
+        calc = Calculator(
+            NumbersConverter(self.a),
+            NumbersConverter(self.b)
+        )
 
-        calc = Calculator(num_a, num_b)
         result, overflow = calc.subtract()
 
-        print("\nВычитание в дополнительном коде:")
+        print("\nВычитание:")
         print(f"{self.a} - {self.b} = {result.number}")
         print(result)
+
         if overflow:
-            print("Переполнение. Результат неверный в 32 битах")
+            print("Переполнение! Результат не помещается в 32 бита.")
 
-
-    def action_mul_direct(self) -> None:
+    def action_mul(self) -> None:
         self.ensure_numbers()
         assert self.a is not None and self.b is not None
 
-        # Для умножения в прямом коде в моём Calculator метод принимает int'ы
-        calc = Calculator(NumbersConverter(self.a), NumbersConverter(self.b))
-        result, overflow_mag = calc.multiply_direct_code(self.a, self.b)
+        calc = Calculator(
+            NumbersConverter(self.a),
+            NumbersConverter(self.b)
+        )
 
-        print("\nУмножение в прямом коде:")
+        result = calc.multiply()
+
+        print("\nУмножение:")
         print(f"{self.a} * {self.b} = {result.number}")
         print(result)
-        if overflow_mag:
-            print("Переполнение модуля: результат не помещается в 31 бит прямого кода.")
 
+    def action_divide(self) -> None:
+        self.ensure_numbers()
+        assert self.a is not None and self.b is not None
+
+        try:
+            calc = Calculator(
+                NumbersConverter(self.a),
+                NumbersConverter(self.b)
+            )
+
+            quotient, remainder = calc.divide()
+
+            print("\nДеление:")
+            print(f"{self.a} ÷ {self.b} = {quotient.number}")
+            print("Частное:")
+            print(quotient)
+
+            print("Остаток:")
+            print(remainder)
+
+        except ZeroDivisionError:
+            print("Ошибка: деление на 0 запрещено.")
 
     def action_exit(self) -> None:
         print("Выход.")

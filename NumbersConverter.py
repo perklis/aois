@@ -1,153 +1,106 @@
 class NumbersConverter:
     BITS = 32
-    ABS_BITS = 31 
+    ABS_BITS = 31
 
     def __init__(self, number: int) -> None:
         self.number = number
-        self.direct_code = self.get_direct_code()
-        self.reversed_code = self.get_reversed_code()
-        self.additional_code = self.get_additional_code()
+        self.direct_code = self._get_direct_code()
+        self.reversed_code = self._get_reversed_code()
+        self.additional_code = self._get_additional_code()
 
     @staticmethod
-    def decimal_to_binary_value(number: int) -> str:
-        if number == 0:
-            return "0"
+    def _decimal_to_binary_abs(n: int) -> list[int]:
+        if n == 0:
+            return [0]
 
-        digits = []
-        positive_number = abs(number)
-        while positive_number > 0:
-            digits.append(str(positive_number % 2))
-            positive_number //= 2
+        bits = []
+        n = abs(n)
 
-        return "".join(reversed(digits))
+        while n > 0:
+            remainder = n - (n >> 1 << 1) 
+            bits.append(remainder)
+            n = n >> 1                   
 
-    def get_direct_code(self) -> str:
-        n = self.number
+        bits.reverse()
+        return bits
 
-        sign_bit = "0" if n >= 0 else "1"
-        mag = self.decimal_to_binary_value(n)
+    def _get_direct_code(self) -> list[int]:
+        sign = 0 if self.number >= 0 else 1
+        mag = self._decimal_to_binary_abs(self.number)
 
         if len(mag) > self.ABS_BITS:
-            print(f"Внимание: {n} не помещается в 32-битный прямой код без переполнения")
             mag = mag[-self.ABS_BITS:]
         else:
-            mag = mag.zfill(self.ABS_BITS)
+            mag = [0] * (self.ABS_BITS - len(mag)) + mag
 
-        return sign_bit + mag
+        return [sign] + mag
 
-    def get_reversed_code(self) -> str:
-        n = self.number
-        direct = self.direct_code
+    def _get_reversed_code(self) -> list[int]:
+        if self.number >= 0:
+            return self.direct_code.copy()
 
-        if n >= 0:
-            return direct
+        inverted = [self.direct_code[0]]
+        for bit in self.direct_code[1:]:
+            inverted.append(0 if bit == 1 else 1)
 
-        inverted = ""
-        for bit in direct:
-            inverted += "1" if bit == "0" else "0"
         return inverted
 
-    def get_additional_code(self) -> str:
-        n = self.number
-    
-        # 32-битное представление для +|n|: 0 + 31 бит модуля
-        mag = self.decimal_to_binary_value(abs(n))
-        if len(mag) > self.ABS_BITS:
-            print(f"Внимание: {n} не помещается в 32-битный дополнительный код без переполнения")
-            mag = mag[-self.ABS_BITS:]
-        else:
-            mag = mag.zfill(self.ABS_BITS)
-    
-        positive_32 = "0" + mag  # это +|n| в 32 битах
-    
-        if n >= 0:
-            return positive_32
-    
-        # n < 0: инверсия всех 32 бит + 1
-        inverted = ""
-        for bit in positive_32:
-            inverted += "0" if bit == "1" else "1"
-    
-        plus1, _ = self._add_bits_32(inverted, "0" * 31 + "1")
-        return plus1
+    def _get_additional_code(self) -> list[int]:
+        if self.number >= 0:
+            return self.direct_code.copy()
 
-    
+        inverted = [1] 
+
+        for bit in self.direct_code[1:]:
+            inverted.append(0 if bit == 1 else 1)
+
+        one = [0] * 31 + [1]
+        result, _ = self._add_bits(inverted, one)
+        return result
+
     @staticmethod
-    def _add_bits_32(a: str, b: str) -> tuple[str, int]:
-        """Нужно только чтобы сделать '+1' при декодировании отрицательного числа."""
-        if len(a) != 32 or len(b) != 32:
-            raise ValueError("Ожидаются строки ровно по 32 бита")
-
+    def _add_bits(a: list[int], b: list[int]) -> tuple[list[int], int]:
         carry = 0
-        out = ["0"] * 32
+        result = [0] * 32
 
         for i in range(31, -1, -1):
-            a_bit = 1 if a[i] == "1" else 0
-            b_bit = 1 if b[i] == "1" else 0
-            s = a_bit + b_bit + carry
-            out[i] = "1" if (s % 2) == 1 else "0"
-            carry = 1 if s >= 2 else 0
+            s = a[i] + b[i] + carry
+            result[i] = s & 1
+            carry = 1 if s > 1 else 0
 
-        return "".join(out), carry
+        return result, carry
 
-    @staticmethod
-    def _binary_str_to_int_unsigned(bits: str) -> int:
-        value = 0
-        for ch in bits:
-            value = value * 2 + (1 if ch == "1" else 0)
-        return value
-
-    @staticmethod
-    def _add_bits(a: str, b: str) -> tuple[str, int]:
-        """Нужно только чтобы сделать '+1' при декодировании отрицательного числа."""
-        if len(a) != 32 or len(b) != 32:
-            raise ValueError("Ожидаются строки ровно по 32 бита")
-
-        carry = 0
-        out = ["0"] * 32
-
-        for i in range(31, -1, -1):
-            a_bit = 1 if a[i] == "1" else 0
-            b_bit = 1 if b[i] == "1" else 0
-            s = a_bit + b_bit + carry
-            out[i] = "1" if (s % 2) == 1 else "0"
-            carry = 1 if s >= 2 else 0
-
-        return "".join(out), carry
-
-    @staticmethod
-    def _binary_str_to_int(bits: str) -> int:
-        value = 0
-        for ch in bits:
-            value = value * 2 + (1 if ch == "1" else 0)
-        return value
-    
     @classmethod
-    def additional_code_to_int(cls, code32: str) -> int:
-        """Перевод 32-битной строки дополнительного кода в int."""
-        if len(code32) != cls.BITS:
-            raise ValueError("Ожидается строка на 32 бита")
-        for ch in code32:
-            if ch not in "01":
-                raise ValueError("Строка должна состоять только из '0' и '1'")
+    def additional_code_to_int(cls, code: list[int]) -> int:
 
-        if code32[0] == "0":
-            return cls._binary_str_to_int_unsigned(code32)
+        if code[0] == 0:
+            value = 0
+            for bit in code:
+                value = (value << 1) + bit
+            return value
 
-        inverted = ""
-        for ch in code32:
-            inverted += "0" if ch == "1" else "1"
+        inverted = [0 if b == 1 else 1 for b in code]
 
-        plus1, _ = cls._add_bits_32(inverted, "0" * 31 + "1")
-        magnitude = cls._binary_str_to_int_unsigned(plus1)
-        return -magnitude
+        one = [0] * 31 + [1]
+        plus1, _ = cls._add_bits(inverted, one)
+
+        value = 0
+        for bit in plus1:
+            value = (value << 1) + bit
+
+        return -value
+
+    @staticmethod
+    def _binary_to_int_unsigned(bits: list[int]) -> int:
+        value = 0
+        for bit in bits:
+            value = (value << 1) + bit
+        return value
 
     def __str__(self) -> str:
         return (
-            f"Число {self.number}\n"
-            f"-Прямой:     {self.direct_code}\n"
-            f"-Обратный:   {self.reversed_code}\n"
-            f"-Дополнительный: {self.additional_code}"
+            f"\nЧисло: {self.number}\n"
+            f"Прямой код:        {self.direct_code}\n"
+            f"Обратный код:      {self.reversed_code}\n"
+            f"Дополнительный код:{self.additional_code}\n"
         )
-
-
