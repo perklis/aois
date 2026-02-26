@@ -2,7 +2,6 @@ import unittest
 from NumbersConverter import NumbersConverter, FRAC_BITS
 from Calculator import Calculator
 
-
 class TestCalculator(unittest.TestCase):
 
     def setUp(self):
@@ -63,23 +62,17 @@ class TestCalculator(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             self.calc.divide(a, b)
 
-    def test_compare_bits(self):
-        self.assertEqual(self.calc.compare_bits([1,0,1], [1,0,0]), 1)
-        self.assertEqual(self.calc.compare_bits([1,0,0], [1,0,1]), -1)
-        self.assertEqual(self.calc.compare_bits([1,0,1], [1,0,1]), 0)
-
-    def test_sub_bits(self):
-        result = self.calc.sub_bits([1,0,0], [0,1,1])
-        self.assertEqual(result, [0,0,1])  
-
-    def test_shift_left(self):
-        bits = [0] + [1]*30 + [0]
-        self.calc.shift_left(bits)
-        self.assertEqual(bits[31], 0)
-
     def test_add_direct(self):
         a = [0]*31 + [1]
         b = [0]*31 + [1]
         result = self.calc.add_direct(a, b)
         self.assertEqual(result[-1], 0) 
         self.assertEqual(result[-2], 1) 
+
+    def test_is_zero_true(self):
+        zero = NumbersConverter.from_decimal_to_direct_code(0)
+        self.assertTrue(self.calc.is_zero(zero.bits))
+
+    def test_is_zero_false(self):
+        num = NumbersConverter.from_decimal_to_direct_code(1)
+        self.assertFalse(self.calc.is_zero(num.bits))

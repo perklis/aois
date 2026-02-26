@@ -1,104 +1,61 @@
 from IEEENumbers import IEEENumber
-
+from BitOperations import BitOperations
 
 class IEEECalculator:
     BIAS = 127
 
-    def int_to_bits(self, value, size):
-        bits = [0] * size
-        for i in range(size - 1, -1, -1):
-            bits[i] = value % 2
-            value //= 2
-        return bits
+    def __init__(self):
+        self.bits = BitOperations()
 
-    def bits_to_int(self, bits):
-        value = 0
-        for b in bits:
-            value = value * 2 + b
-        return value
-
-    def add_bits(self, a, b):
-        result = [0] * len(a)
-        carry = 0
-        for i in range(len(a) - 1, -1, -1):
-            s = a[i] + b[i] + carry
-            result[i] = s % 2
-            carry = s // 2
-        return result, carry
-
-    def subtract_bits(self, a, b):
-        max_len = max(len(a), len(b))
-        a = [0] * (max_len - len(a)) + a
-        b = [0] * (max_len - len(b)) + b
-
-        result = [0] * max_len
-        borrow = 0
-
-        for i in range(max_len - 1, -1, -1):
-            s = a[i] - b[i] - borrow
-            if s < 0:
-                s += 2
-                borrow = 1
-            else:
-                borrow = 0
-            result[i] = s
-
-        return result
-
-    def move_left(self, bits, count=1):
-        for _ in range(count):
-            for i in range(len(bits) - 1):
-                bits[i] = bits[i + 1]
-            bits[-1] = 0
-
-    def move_right(self, bits, count=1):
-        for _ in range(count):
-            for i in range(len(bits) - 1, 0, -1):
-                bits[i] = bits[i - 1]
-            bits[0] = 0
-
-    def decimal_to_ieee(self, number_str: str):
-        number_str = number_str.strip()
+    def _extract_sign(self, number_str):
         sign = 0
         if number_str.startswith("-"):
             sign = 1
             number_str = number_str[1:]
-
+        return sign, number_str
+    
+    def _split_parts(self, number_str):
         if "." in number_str:
-            int_part_str, frac_part_str = number_str.split(".")
-        else:
-            int_part_str = number_str
-            frac_part_str = "0"
-
-        if int_part_str.strip("0") == "" and frac_part_str.strip("0") == "":
-            return IEEENumber([sign] + [0] * 31)
+            return number_str.split(".")
+        return number_str, "0"
+    
+    def _is_zero(self, int_part_str, frac_part_str):
+        return int_part_str.strip("0") == "" and frac_part_str.strip("0") == ""
+    
+    def _convert_integer_part(self, int_part_str):
         int_value = 0
         for c in int_part_str:
             int_value = int_value * 10 + int(c)
-
-        int_bits = []
         if int_value == 0:
-            int_bits = [0]
-        else:
-            while int_value > 0:
-                int_bits.insert(0, int_value % 2)
-                int_value //= 2
-
+            return [0]
+    
+        bits = []
+        while int_value > 0:
+            bits.insert(0, int_value % 2)
+            int_value //= 2
+    
+        return bits
+    
+    def _convert_fraction_part(self, frac_part_str):
         frac_value = 0
         power = 1
+    
         for c in frac_part_str:
             frac_value = frac_value * 10 + int(c)
             power *= 10
-
-        frac_bits = []
-        for _ in range(50): 
+    
+        bits = []
+        for _ in range(50):
             frac_value *= 2
             if frac_value >= power:
-                frac_bits.append(1)
+                bits.append(1)
                 frac_value -= power
             else:
-                frac_bits.append(0)
-
+                bits.append(0)
+    
+        return bits
+    
+    def _build_normalized_parts(self, int_bits, frac_bits):
         if int_bits != [0]:
             exponent = len(int_bits) - 1
             mantissa_bits = int_bits[1:] + frac_bits
@@ -106,22 +63,43 @@ class IEEECalculator:
             shift = 0
             while shift < len(frac_bits) and frac_bits[shift] == 0:
                 shift += 1
+    
             exponent = -(shift + 1)
-            mantissa_bits = frac_bits[shift + 1 :]
-
-        exponent_bits = self.int_to_bits(exponent + self.BIAS, 8)
+            mantissa_bits = frac_bits[shift + 1:]
+    
+        exponent += self.BIAS
+    
         mantissa_bits = mantissa_bits[:23]
         while len(mantissa_bits) < 23:
             mantissa_bits.append(0)
-
+    
+        return exponent, mantissa_bits
+    
+    def _build_ieee_number(self, sign, exponent, mantissa_bits):
+        exponent_bits = self.bits.int_to_bits(exponent, 8)
         return IEEENumber([sign] + exponent_bits + mantissa_bits)
+    
+    def decimal_to_ieee(self, number_str: str):
+        number_str = number_str.strip()
+    
+        sign, number_str = self._extract_sign(number_str)
+        int_part_str, frac_part_str = self._split_parts(number_str)
+    
+        if self._is_zero(int_part_str, frac_part_str):
+            return IEEENumber([sign] + [0] * 31)
+    
+        int_bits = self._convert_integer_part(int_part_str)
+        frac_bits = self._convert_fraction_part(frac_part_str)
+        exponent, mantissa_bits = self._build_normalized_parts(int_bits, frac_bits)
+    
+        return self._build_ieee_number(sign, exponent, mantissa_bits)
 
     def _prepare_addition(self, A: IEEENumber, B: IEEENumber):
         sign_a = A.get_sign()
         sign_b = B.get_sign()
 
-        exp_a = self.bits_to_int(A.get_exponent_bits())
-        exp_b = self.bits_to_int(B.get_exponent_bits())
+        exp_a = self.bits.bits_to_int(A.get_exponent_bits())
+        exp_b = self.bits.bits_to_int(B.get_exponent_bits())
 
         mant_a = self.get_mantissa_with_hidden(A)
         mant_b = self.get_mantissa_with_hidden(B)
@@ -135,41 +113,41 @@ class IEEECalculator:
 
     def _align_exponents(self, mant_a, mant_b, exp_a, exp_b):
         if exp_a > exp_b:
-            self.move_right(mant_b, exp_a - exp_b)
+            self.bits.move_right(mant_b, exp_a - exp_b)
             return mant_a, mant_b, exp_a
         elif exp_b > exp_a:
-            self.move_right(mant_a, exp_b - exp_a)
+            self.bits.move_right(mant_a, exp_b - exp_a)
             return mant_a, mant_b, exp_b
         else:
             return mant_a, mant_b, exp_a  
 
     def _add_or_sub_mantissas(self, mant_a, mant_b, sign_a, sign_b):
         if sign_a == sign_b:
-            mant_res, carry = self.add_bits(mant_a, mant_b)
+            mant_res, carry = self.bits.add_bits(mant_a, mant_b)
             sign_res = sign_a
 
             if carry:
-                self.move_right(mant_res, 1)
+                self.bits.move_right(mant_res, 1)
                 return mant_res, sign_res, 1
             return mant_res, sign_res, 0
         else:
-            cmp = self.compare_register(mant_a, mant_b)
+            cmp = self.bits.compare_register(mant_a, mant_b)
 
             if cmp == 0:
                 return None, 0, 0
 
             if cmp > 0:
-                return self.subtract_bits(mant_a, mant_b), sign_a, 0
+                return self.bits.subtract_bits(mant_a, mant_b), sign_a, 0
             else:
-                return self.subtract_bits(mant_b, mant_a), sign_b, 0
+                return self.bits.subtract_bits(mant_b, mant_a), sign_b, 0
 
     def _normalize_after_add(self, mant_res, exponent):
         if mant_res[7] == 1:
-            self.move_right(mant_res, 1)
+            self.bits.move_right(mant_res, 1)
             exponent += 1
 
         while mant_res[8] == 0 and exponent > 0:
-            self.move_left(mant_res, 1)
+            self.bits.move_left(mant_res, 1)
             exponent -= 1
 
         return mant_res, exponent
@@ -182,7 +160,7 @@ class IEEECalculator:
             return IEEENumber([0] * 32)
 
         mantissa_bits = mant_res[9:32]
-        exponent_bits = self.int_to_bits(exponent, 8)
+        exponent_bits = self.bits.int_to_bits(exponent, 8)
 
         return IEEENumber([sign_res] + exponent_bits + mantissa_bits)
 
@@ -221,8 +199,8 @@ class IEEECalculator:
     def _prepare_multiplication(self, a: IEEENumber, b: IEEENumber):
         sign = a.get_sign() ^ b.get_sign()
 
-        exp_a = self.bits_to_int(a.get_exponent_bits())
-        exp_b = self.bits_to_int(b.get_exponent_bits())
+        exp_a = self.bits.bits_to_int(a.get_exponent_bits())
+        exp_b = self.bits.bits_to_int(b.get_exponent_bits())
 
         exponent = exp_a + exp_b - self.BIAS
 
@@ -287,7 +265,7 @@ class IEEECalculator:
             return IEEENumber([0] * 32)
 
         bits = [sign]
-        bits += self.int_to_bits(exponent, 8)
+        bits += self.bits.int_to_bits(exponent, 8)
 
         for i in range(23):
             bits.append(mantissa_24[i + 1])
@@ -311,14 +289,6 @@ class IEEECalculator:
 
         return self._build_result(sign, exponent, mantissa_24)
 
-    def compare_register(self, a, b):
-        for i in range(len(a)):
-            if a[i] > b[i]:
-                return 1
-            if a[i] < b[i]:
-                return -1
-        return 0
-
     def get_mantissa_with_hidden(self, num: IEEENumber):
         mant = [0] * 32
         mant[8] = 1
@@ -329,21 +299,6 @@ class IEEECalculator:
 
         return mant
     
-    def sub_register(self, a, b):
-        res = a[:]
-        borrow = 0
-
-        for i in range(len(a) - 1, -1, -1):
-            d = res[i] - b[i] - borrow
-            if d < 0:
-                d += 2
-                borrow = 1
-            else:
-                borrow = 0
-            res[i] = d
-
-        return res
-
     def mantissa_bits_to_int(self, mantissa_bits):
         value = 1 << 23  
 
@@ -380,8 +335,8 @@ class IEEECalculator:
         sign = a.get_sign() ^ b.get_sign()
 
         exp = (
-            self.bits_to_int(a.get_exponent_bits())
-            - self.bits_to_int(b.get_exponent_bits())
+            self.bits.bits_to_int(a.get_exponent_bits())
+            - self.bits.bits_to_int(b.get_exponent_bits())
             + self.BIAS
         )
 
@@ -400,4 +355,4 @@ class IEEECalculator:
         for i in range(23):
             mantissa_bits.append((mant_int >> (22 - i)) & 1)
 
-        return IEEENumber([sign] + self.int_to_bits(exp, 8) + mantissa_bits)
+        return IEEENumber([sign] + self.bits.int_to_bits(exp, 8) + mantissa_bits)

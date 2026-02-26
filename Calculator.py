@@ -1,16 +1,16 @@
 from NumbersConverter import NumbersConverter, SCALE, FRAC_BITS
-
+from BitOperations import BitOperations
 
 class Calculator:
+
+    def __init__(self):
+        self.bits=BitOperations()
+
     def add(self, a: NumbersConverter, b: NumbersConverter):
         list_twos1 = a.get_twos_complement()
         list_twos2 = b.get_twos_complement()
         result = [0] * 32
-        carry = 0
-        for i in reversed(range(32)):
-            sum = list_twos1[i] + list_twos2[i] + carry
-            result[i] = sum % 2
-            carry = sum // 2
+        result, _ = self.bits.add_bits(list_twos1, list_twos2)
             
         return NumbersConverter.from_twos_to_direct(result)
 
@@ -37,7 +37,7 @@ class Calculator:
                 b_bits_copy = b.bits[:]
                 shift = 31 - i
                 for _ in range(shift):
-                    self.shift_left(b_bits_copy)
+                    self.bits.move_left(b_bits_copy)
                 result = self.add_direct(result, b_bits_copy)
         result[0] = sign
         return NumbersConverter(result)
@@ -61,8 +61,8 @@ class Calculator:
                 next_bit = 0
             remainder = remainder[1:] + [next_bit]
 
-            if self.compare_bits(remainder, divisor_mag) >= 0:
-                remainder = self.sub_bits(remainder, divisor_mag)
+            if self.bits.compare_register(remainder, divisor_mag) >= 0:
+                remainder = self.bits.sub_register(remainder, divisor_mag)
                 quotient_full.append(1)
             else:
                 quotient_full.append(0)
@@ -74,32 +74,6 @@ class Calculator:
         result_bits[1:] = scaled_result
 
         return NumbersConverter(result_bits)
-
-    def compare_bits(self, a_bits, b_bits):
-        for a, b in zip(a_bits, b_bits):
-            if a > b:
-                return 1
-            elif a < b:
-                return -1
-        return 0
-
-    def sub_bits(self, a_bits, b_bits):
-        result = a_bits[:]
-        borrow = 0
-        for i in reversed(range(len(result))):
-            diff = result[i] - (b_bits[i] if i < len(b_bits) else 0) - borrow
-            if diff < 0:
-                diff += 2
-                borrow = 1
-            else:
-                borrow = 0
-            result[i] = diff
-        return result
-
-    def shift_left(self, bits):
-        for i in range(1, 31):
-            bits[i] = bits[i + 1]
-        bits[31] = 0
 
     def add_direct(self, a, b):
         result = a[:]
