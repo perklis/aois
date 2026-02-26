@@ -1,5 +1,6 @@
 from IEEENumbers import IEEENumber
 from BitOperations import BitOperations
+from exceptions import ExponentOverflowError, ExponentUnderflowError, DivisionByZeroError
 
 class IEEECalculator:
     BIAS = 127
@@ -13,37 +14,37 @@ class IEEECalculator:
             sign = 1
             number_str = number_str[1:]
         return sign, number_str
-    
+
     def _split_parts(self, number_str):
         if "." in number_str:
             return number_str.split(".")
         return number_str, "0"
-    
+
     def _is_zero(self, int_part_str, frac_part_str):
         return int_part_str.strip("0") == "" and frac_part_str.strip("0") == ""
-    
+
     def _convert_integer_part(self, int_part_str):
         int_value = 0
         for c in int_part_str:
             int_value = int_value * 10 + int(c)
         if int_value == 0:
             return [0]
-    
+
         bits = []
         while int_value > 0:
             bits.insert(0, int_value % 2)
             int_value //= 2
-    
+
         return bits
-    
+
     def _convert_fraction_part(self, frac_part_str):
         frac_value = 0
         power = 1
-    
+
         for c in frac_part_str:
             frac_value = frac_value * 10 + int(c)
             power *= 10
-    
+
         bits = []
         for _ in range(50):
             frac_value *= 2
@@ -52,9 +53,9 @@ class IEEECalculator:
                 frac_value -= power
             else:
                 bits.append(0)
-    
+
         return bits
-    
+
     def _build_normalized_parts(self, int_bits, frac_bits):
         if int_bits != [0]:
             exponent = len(int_bits) - 1
@@ -63,35 +64,35 @@ class IEEECalculator:
             shift = 0
             while shift < len(frac_bits) and frac_bits[shift] == 0:
                 shift += 1
-    
+
             exponent = -(shift + 1)
-            mantissa_bits = frac_bits[shift + 1:]
-    
+            mantissa_bits = frac_bits[shift + 1 :]
+
         exponent += self.BIAS
-    
+
         mantissa_bits = mantissa_bits[:23]
         while len(mantissa_bits) < 23:
             mantissa_bits.append(0)
-    
+
         return exponent, mantissa_bits
-    
+
     def _build_ieee_number(self, sign, exponent, mantissa_bits):
         exponent_bits = self.bits.int_to_bits(exponent, 8)
         return IEEENumber([sign] + exponent_bits + mantissa_bits)
-    
+
     def decimal_to_ieee(self, number_str: str):
         number_str = number_str.strip()
-    
+
         sign, number_str = self._extract_sign(number_str)
         int_part_str, frac_part_str = self._split_parts(number_str)
-    
+
         if self._is_zero(int_part_str, frac_part_str):
             return IEEENumber([sign] + [0] * 31)
-    
+
         int_bits = self._convert_integer_part(int_part_str)
         frac_bits = self._convert_fraction_part(frac_part_str)
         exponent, mantissa_bits = self._build_normalized_parts(int_bits, frac_bits)
-    
+
         return self._build_ieee_number(sign, exponent, mantissa_bits)
 
     def _prepare_addition(self, A: IEEENumber, B: IEEENumber):
@@ -109,7 +110,7 @@ class IEEECalculator:
         while len(mant_b) < 24:
             mant_b.append(0)
 
-        return sign_a, sign_b, exp_a, exp_b, mant_a, mant_b  
+        return sign_a, sign_b, exp_a, exp_b, mant_a, mant_b
 
     def _align_exponents(self, mant_a, mant_b, exp_a, exp_b):
         if exp_a > exp_b:
@@ -119,7 +120,7 @@ class IEEECalculator:
             self.bits.move_right(mant_a, exp_b - exp_a)
             return mant_a, mant_b, exp_b
         else:
-            return mant_a, mant_b, exp_a  
+            return mant_a, mant_b, exp_a
 
     def _add_or_sub_mantissas(self, mant_a, mant_b, sign_a, sign_b):
         if sign_a == sign_b:
@@ -170,12 +171,13 @@ class IEEECalculator:
         if self.is_zero(B):
             return A.copy()
 
-        sign_a, sign_b, exp_a, exp_b, mant_a, mant_b = \
-            self._prepare_addition(A, B)
+        sign_a, sign_b, exp_a, exp_b, mant_a, mant_b = self._prepare_addition(A, B)
 
         mant_a, mant_b, exponent = self._align_exponents(mant_a, mant_b, exp_a, exp_b)
 
-        mant_res, sign_res, carry_shift = self._add_or_sub_mantissas(mant_a, mant_b, sign_a, sign_b)
+        mant_res, sign_res, carry_shift = self._add_or_sub_mantissas(
+            mant_a, mant_b, sign_a, sign_b
+        )
 
         if mant_res is None:
             return IEEENumber([0] * 32)
@@ -228,7 +230,7 @@ class IEEECalculator:
                     carry = s // 2
                     k -= 1
 
-        return product    
+        return product
 
     def _normalize_product(self, product, exponent):
         if product[0] == 1:
@@ -240,7 +242,7 @@ class IEEECalculator:
             rest = product[26:]
 
         return mantissa_full, rest, exponent
-    
+
     def _round_mantissa(self, mantissa_full, rest, exponent):
         mantissa_24 = mantissa_full[:24]
         guard = mantissa_full[24]
@@ -256,13 +258,13 @@ class IEEECalculator:
                 mantissa_24 = [1] + mantissa_24[:-1]
                 exponent += 1
 
-        return mantissa_24, exponent  
+        return mantissa_24, exponent
 
     def _build_result(self, sign, exponent, mantissa_24):
         if exponent >= 255:
-            return IEEENumber([sign] + [1] * 8 + [0] * 23)
+            raise ExponentOverflowError("Переполнение экспоненты")
         if exponent <= 0:
-            return IEEENumber([0] * 32)
+            raise ExponentUnderflowError("Переполнение экспоненты")
 
         bits = [sign]
         bits += self.bits.int_to_bits(exponent, 8)
@@ -270,22 +272,19 @@ class IEEECalculator:
         for i in range(23):
             bits.append(mantissa_24[i + 1])
 
-        return IEEENumber(bits)  
-    
+        return IEEENumber(bits)
+
     def multiply(self, a: IEEENumber, b: IEEENumber) -> IEEENumber:
         if self.is_zero(a) or self.is_zero(b):
             return IEEENumber([0] * 32)
 
-        sign, exponent, mant_a, mant_b = \
-            self._prepare_multiplication(a, b)
+        sign, exponent, mant_a, mant_b = self._prepare_multiplication(a, b)
 
         product = self._multiply_mantissas(mant_a, mant_b)
 
-        mantissa_full, rest, exponent = \
-            self._normalize_product(product, exponent)
+        mantissa_full, rest, exponent = self._normalize_product(product, exponent)
 
-        mantissa_24, exponent = \
-            self._round_mantissa(mantissa_full, rest, exponent)
+        mantissa_24, exponent = self._round_mantissa(mantissa_full, rest, exponent)
 
         return self._build_result(sign, exponent, mantissa_24)
 
@@ -293,14 +292,14 @@ class IEEECalculator:
         mant = [0] * 32
         mant[8] = 1
 
-        src = num.get_mantissa_bits() 
+        src = num.get_mantissa_bits()
         for i in range(23):
             mant[9 + i] = src[i]
 
         return mant
-    
+
     def mantissa_bits_to_int(self, mantissa_bits):
-        value = 1 << 23  
+        value = 1 << 23
 
         for i in range(23):
             if mantissa_bits[i] == 1:
@@ -328,7 +327,7 @@ class IEEECalculator:
 
     def divide(self, a: IEEENumber, b: IEEENumber) -> IEEENumber:
         if self.is_zero(b):
-            raise ZeroDivisionError()
+            raise DivisionByZeroError("Деление на ноль")
         if self.is_zero(a):
             return IEEENumber([0] * 32)
 

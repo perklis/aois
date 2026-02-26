@@ -2,7 +2,7 @@ from NumbersConverter import NumbersConverter
 from Calculator import Calculator
 from IEEECalculator import IEEECalculator
 from BCD2421Calculator import BCD2421Calculator
-from exceptions import BCD2421Error
+from exceptions import BCD2421Error, DivisionByZeroError
 
 
 class Menu:
@@ -25,7 +25,7 @@ class Menu:
                 self.handle_choice(choice)
             except ValueError:
                 print("Ошибка ввода")
-            except ZeroDivisionError:
+            except DivisionByZeroError:
                 print("Ошибка: деление на 0")
             except KeyboardInterrupt:
                 print("\nВыход")
@@ -76,7 +76,7 @@ class Menu:
                     return
 
             except ValueError:
-                print("Введите корректные числа(int - для обычного)")
+                print("Введите корректные числа")
 
     def print_menu(self):
         print("\nТекущие числа:")

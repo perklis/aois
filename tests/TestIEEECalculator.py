@@ -1,6 +1,6 @@
 import unittest
 from IEEECalculator import IEEECalculator
-
+from exceptions import ExponentOverflowError, ExponentUnderflowError, DivisionByZeroError
 
 class TestIEEECalculator(unittest.TestCase):
 
@@ -105,13 +105,14 @@ class TestIEEECalculator(unittest.TestCase):
     def test_divide_by_zero(self):
         a = self.calc.decimal_to_ieee("6")
         b = self.calc.decimal_to_ieee("0")
-        with self.assertRaises(ZeroDivisionError):
+        with self.assertRaises(DivisionByZeroError):
             self.calc.divide(a, b)
 
     def test_build_result_overflow(self):
-        num = self.calc._build_result(0, 300, [1] * 24)
-        self.assertEqual(num.get_exponent_bits(), [1] * 8)
+        with self.assertRaises(ExponentOverflowError):
+            self.calc._build_result(0, 300, [1] * 24)
 
     def test_build_result_underflow(self):
-        num = self.calc._build_result(0, -5, [1] * 24)
-        self.assertTrue(self.calc.is_zero(num))
+        with self.assertRaises(ExponentUnderflowError):
+            self.calc._build_result(0, -5, [1] * 24)
+
