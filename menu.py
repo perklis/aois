@@ -1,155 +1,252 @@
 from NumbersConverter import NumbersConverter
 from Calculator import Calculator
+from IEEECalculator import IEEECalculator
+from BCD2421Calculator import BCD2421Calculator
+from exceptions import BCD2421Error
 
 
 class Menu:
-    def __init__(self) -> None:
-        self._running = True
-        self.a: int | None = None
-        self.b: int | None = None
+    def __init__(self):
+        self.running = True
+        self.calc_type = None
+        self.a = None
+        self.b = None
+        self.calc = None
+        self.ieee_calc = None
 
-    def run(self) -> None:
-        self.input_two_numbers()
+    def run(self):
+        self.select_calculator()
+        self.input_numbers()
 
-        while self._running:
+        while self.running:
             try:
                 self.print_menu()
                 choice = input("Выберите пункт: ").strip()
                 self.handle_choice(choice)
-
-            except ValueError as e:
-                print("ValueError:", e)
-
+            except ValueError:
+                print("Ошибка ввода")
+            except ZeroDivisionError:
+                print("Ошибка: деление на 0")
             except KeyboardInterrupt:
-                print("\nВыход.")
-                self._running = False
+                print("\nВыход")
+                self.running = False
 
-    def input_two_numbers(self) -> None:
+    def select_calculator(self):
+        while True:
+            print("Выберите калькулятор:")
+            print("1 - Обычный")
+            print("2 - По стандарту IEEE-754-2008")
+            print("3 - b)2421 BCD")
+
+            choice = input("Ваш выбор: ").strip()
+
+            if choice == "1":
+                self.calc_type = "normal"
+                self.calc = Calculator()
+                break
+            if choice == "2":
+                self.calc_type = "ieee"
+                self.ieee_calc = IEEECalculator()
+                break
+            if choice == "3":
+                self.calc_type = "bcd"
+                self.bcd_calc = BCD2421Calculator()
+                break
+            print("Неверный выбор, попробуйте снова")
+
+    def input_numbers(self):
         while True:
             try:
-                self.a = int(input("Введите первое целое число a: ").strip())
-                self.b = int(input("Введите второе целое число b: ").strip())
-                return
+                a_input = input("Введите первое число: ").strip().replace(" ", "")
+                b_input = input("Введите второе число: ").strip().replace(" ", "")
+
+                if self.calc_type == "normal":
+                    self.a = NumbersConverter.from_decimal_to_direct_code(int(a_input))
+                    self.b = NumbersConverter.from_decimal_to_direct_code(int(b_input))
+                    return
+
+                if self.calc_type == "ieee":
+                    self.a = self.ieee_calc.decimal_to_ieee(a_input)
+                    self.b = self.ieee_calc.decimal_to_ieee(b_input)
+                    return
+
+                if self.calc_type == "bcd":
+                    self.a = [int(d) for d in a_input]
+                    self.b = [int(d) for d in b_input]
+                    return
+
             except ValueError:
-                print("Ошибка: введите два целых числа.")
+                print("Введите корректные числа(int - для обычного)")
 
-    def ensure_numbers(self) -> None:
-        if self.a is None or self.b is None:
-            self.input_two_numbers()
+    def print_menu(self):
+        print("\nТекущие числа:")
 
-    def print_menu(self) -> None:
-        print("\nВыберите:")
-        print(f"Текущие числа: a={self.a}, b={self.b}")
-        print("1. Перевод в двоичную систему")
-        print("2. Сложение a + b (доп. код)")
-        print("3. Вычитание a - b (доп. код)")
-        print("4. Умножение a * b (сдвиг + сложение)")
-        print("5. Ввести числа заново")
-        print("6. Деление a ÷ b (двоичное столбиком)")
+        if self.calc_type == "normal":
+            print("A =", self.a.from_direct_code_to_decimal())
+            print("B =", self.b.from_direct_code_to_decimal())
+
+        if self.calc_type == "ieee":
+            print("A:", self.a.get_bits_str())
+            print("A:", self.a.from_bits_to_decimal())
+
+            print("B:", self.b.get_bits_str())
+            print("B:", self.b.from_bits_to_decimal())
+
+        if self.calc_type == "bcd":
+            print("A:", self.a)
+            print("A:", self.bcd_calc.digits_to_bits(self.a))
+            print("B:", self.b)
+            print("B:", self.bcd_calc.digits_to_bits(self.b))
+
+        print("\nВыберите операцию:")
+
+        if self.calc_type == "normal":
+            print("1. Показать прямой, обратный, дополнительный код")
+            print("2. Сложение")
+            print("3. Вычитание")
+            print("4. Умножение")
+            print("5. Деление")
+
+        if self.calc_type == "ieee":
+            print("1. Сложение")
+            print("2. Вычитание")
+            print("3. Умножение")
+            print("4. Деление")
+
+        if self.calc_type == "bcd":
+            print("1. Сложение BCD 2421")
+
+        print("6. Ввести числа заново")
         print("0. Выход")
 
-    def handle_choice(self, choice: str) -> None:
+    def handle_choice(self, choice):
+
+        if self.calc_type == "normal":
+            self._handle_normal(choice)
+
+        elif self.calc_type == "ieee":
+            self._handle_ieee(choice)
+
+        elif self.calc_type == "bcd":
+            self._handle_bcd(choice)
+
+    def _handle_normal(self, choice):
+
         if choice == "1":
-            self.action_convert_both()
+            print("\nЧИСЛО A")
+            print(self.a)
+            print("\nЧИСЛО B")
+            print(self.b)
+            return
+
+        if choice == "2":
+            print("\nСЛОЖЕНИЕ")
+            print(self.calc.add(self.a, self.b))
+            return
+
+        if choice == "3":
+            print("\nВЫЧИТАНИЕ")
+            print(self.calc.subtract(self.a, self.b))
+            return
+
+        if choice == "4":
+            print("\nУМНОЖЕНИЕ")
+            print(self.calc.multiply(self.a, self.b))
+            return
+
+        if choice == "5":
+            result = self.calc.divide(self.a, self.b)
+            print("\nДЕЛЕНИЕ")
+            print("Десятичное:", result.to_decimal_division())
+            print("Прямой:       ", result.get_direct_code())
+            print("Обратный:     ", result.get_ones_complement())
+            print("Дополнительный:", result.get_twos_complement())
+            return
+
+        if choice == "6":
+            self.input_numbers()
+            return
+
+        if choice == "0":
+            self.running = False
+            return
+
+        print("Попробуй снова")
+
+    def _handle_ieee(self, choice):
+
+        if choice == "1":
+            result = self.ieee_calc.add(self.a, self.b)
+            operation_name = "СЛОЖЕНИЕ"
+
         elif choice == "2":
-            self.action_add()
+            result = self.ieee_calc.subtract(self.a, self.b)
+            operation_name = "ВЫЧИТАНИЕ"
+
         elif choice == "3":
-            self.action_sub()
+            result = self.ieee_calc.multiply(self.a, self.b)
+            operation_name = "УМНОЖЕНИЕ"
+
         elif choice == "4":
-            self.action_mul()
-        elif choice == "5":
-            self.input_two_numbers()
+            result = self.ieee_calc.divide(self.a, self.b)
+            operation_name = "ДЕЛЕНИЕ"
+
         elif choice == "6":
-            self.action_divide()
+            self.input_numbers()
+            return
+
         elif choice == "0":
-            self.action_exit()
+            self.running = False
+            print("Выход")
+            return
+
         else:
-            print("Попробуйте снова.")
+            print("Неверный пункт меню")
+            return
 
-    def action_convert_both(self) -> None:
-        self.ensure_numbers()
-        assert self.a is not None and self.b is not None
+        print(f"\n{operation_name}")
 
-        print("\na:")
-        print(NumbersConverter(self.a))
+        print("\nA:")
+        print("  Двоичный:", self.a.get_bits_str())
+        print("  Десятичный:", self.a.from_bits_to_decimal())
 
-        print("\nb:")
-        print(NumbersConverter(self.b))
+        print("\nB:")
+        print("  Двоичный:", self.b.get_bits_str())
+        print("  Десятичный:", self.b.from_bits_to_decimal())
 
-    def action_add(self) -> None:
-        self.ensure_numbers()
-        assert self.a is not None and self.b is not None
+        print("\nОтвет:")
+        print("  Двоичный:", result.get_bits_str())
+        print("  Десятичный:", result.from_bits_to_decimal())
 
-        calc = Calculator(
-            NumbersConverter(self.a),
-            NumbersConverter(self.b)
-        )
+    def _handle_bcd(self, choice):
+        if choice == "1":
+            try:
+                max_len = max(len(self.a), len(self.b))
+                a_digits = [0] * (max_len - len(self.a)) + self.a
+                b_digits = [0] * (max_len - len(self.b)) + self.b
 
-        result, overflow = calc.add()
+                a_bits = self.bcd_calc.digits_to_bits(a_digits)
+                b_bits = self.bcd_calc.digits_to_bits(b_digits)
 
-        print("\nСложение:")
-        print(f"{self.a} + {self.b} = {result.number}")
-        print(result)
+                result_bits = self.bcd_calc.add_numbers(a_bits, b_bits)
+                result_digits = self.bcd_calc.bits_to_digits(result_bits)
 
-        if overflow:
-            print("Переполнение! Результат не помещается в 32 бита.")
+                print("\nСЛОЖЕНИЕ BCD 2421")
+                print("A:", a_digits)
+                print("A в битах:", a_bits)
+                print("B:", b_digits)
+                print("B в битах:", b_bits)
+                print("Результат:", result_digits)
+                print("Результат в битах:", result_bits)
 
-    def action_sub(self) -> None:
-        self.ensure_numbers()
-        assert self.a is not None and self.b is not None
-
-        calc = Calculator(
-            NumbersConverter(self.a),
-            NumbersConverter(self.b)
-        )
-
-        result, overflow = calc.subtract()
-
-        print("\nВычитание:")
-        print(f"{self.a} - {self.b} = {result.number}")
-        print(result)
-
-        if overflow:
-            print("Переполнение! Результат не помещается в 32 бита.")
-
-    def action_mul(self) -> None:
-        self.ensure_numbers()
-        assert self.a is not None and self.b is not None
-
-        calc = Calculator(
-            NumbersConverter(self.a),
-            NumbersConverter(self.b)
-        )
-
-        result = calc.multiply()
-
-        print("\nУмножение:")
-        print(f"{self.a} * {self.b} = {result.number}")
-        print(result)
-
-    def action_divide(self) -> None:
-        self.ensure_numbers()
-        assert self.a is not None and self.b is not None
-
-        try:
-            calc = Calculator(
-                NumbersConverter(self.a),
-                NumbersConverter(self.b)
-            )
-
-            quotient, remainder = calc.divide()
-
-            print("\nДеление:")
-            print(f"{self.a} ÷ {self.b} = {quotient.number}")
-            print("Частное:")
-            print(quotient)
-
-            print("Остаток:")
-            print(remainder)
-
-        except ZeroDivisionError:
-            print("Ошибка: деление на 0 запрещено.")
-
-    def action_exit(self) -> None:
-        print("Выход.")
-        self._running = False
+            except BCD2421Error as e:
+                print("Ошибка ввода:", e)
+        elif choice == "6":
+            self.input_numbers()
+            return
+        elif choice == "0":
+            self.running = False
+            print("Выход")
+            return
+        else:
+            print("Неверный пункт меню")

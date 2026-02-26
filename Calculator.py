@@ -1,128 +1,114 @@
-from NumbersConverter import NumbersConverter
+from NumbersConverter import NumbersConverter, SCALE, FRAC_BITS
 
 
 class Calculator:
+    def add(self, a: NumbersConverter, b: NumbersConverter):
+        list_twos1 = a.get_twos_complement()
+        list_twos2 = b.get_twos_complement()
+        result = [0] * 32
+        carry = 0
+        for i in reversed(range(32)):
+            sum = list_twos1[i] + list_twos2[i] + carry
+            result[i] = sum % 2
+            carry = sum // 2
+            
+        return NumbersConverter.from_twos_to_direct(result)
 
-    def __init__(self, x: NumbersConverter, y: NumbersConverter) -> None:
-        self.x = x
-        self.y = y
+    def subtract(self, a, b):
+        return self.add(a, self.negate(b))
 
-    def add(self):
-        result_bits, _ = NumbersConverter._add_bits(
-            self.x.additional_code,
-            self.y.additional_code
-        )
+    def negate(self, number: NumbersConverter):
+        twos_complement_number = number.get_twos_complement()
+        inverted = [1 - b for b in twos_complement_number]
+        carry = 1
+        for i in reversed(range(32)):
+            sum = inverted[i] + carry
+            inverted[i] = sum % 2
+            carry = sum // 2
+        return NumbersConverter.from_twos_to_direct(inverted)
 
-        overflow = (
-            self.x.additional_code[0] == self.y.additional_code[0]
-            and result_bits[0] != self.x.additional_code[0]
-        )
+    def multiply(self, a: NumbersConverter, b: NumbersConverter):
+        sign = 0
+        if a.bits[0] != b.bits[0]:
+            sign = 1
+        result = [0] * 32
+        for i in reversed(range(1, 32)):
+            if a.bits[i] == 1:
+                b_bits_copy = b.bits[:]
+                shift = 31 - i
+                for _ in range(shift):
+                    self.shift_left(b_bits_copy)
+                result = self.add_direct(result, b_bits_copy)
+        result[0] = sign
+        return NumbersConverter(result)
 
-        result_int = NumbersConverter.additional_code_to_int(result_bits)
-        return NumbersConverter(result_int), overflow
-
-    def subtract(self):
-        neg_y = self._negate(self.y.additional_code)
-
-        result_bits, _ = NumbersConverter._add_bits(
-            self.x.additional_code,
-            neg_y
-        )
-
-        overflow = (
-            self.x.additional_code[0] != self.y.additional_code[0]
-            and result_bits[0] != self.x.additional_code[0]
-        )
-
-        result_int = NumbersConverter.additional_code_to_int(result_bits)
-        return NumbersConverter(result_int), overflow
-
-    def multiply(self):
-
-        a = self.x.direct_code
-        b = self.y.direct_code
-
-        sign = a[0] ^ b[0]
-
-        mag_a = a[1:]
-        mag_b = b[1:]
-
-        result = [0] * 31
-
-        for i in range(30, -1, -1):
-            if mag_b[i] == 1:
-
-                shifted = mag_a.copy()
-
-                for _ in range(30 - i):
-                    shifted = shifted[1:] + [0]
-
-                temp, _ = NumbersConverter._add_bits(
-                    [0] + result,
-                    [0] + shifted
-                )
-                result = temp[1:]
-
-        value = 0
-        for bit in result:
-            value = (value << 1) + bit
-
-        if sign == 1:
-            value = -value
-
-        return NumbersConverter(value)
-
-    def divide(self):
-
-        a = self.x.direct_code
-        b = self.y.direct_code
-
-        if all(bit == 0 for bit in b[1:]):
+    def divide(self, dividend: NumbersConverter, divisor: NumbersConverter):
+        if self.is_zero(divisor.bits):
             raise ZeroDivisionError("Деление на 0")
 
-        sign = a[0] ^ b[0]
+        sign = dividend.bits[0] ^ divisor.bits[0]
 
-        dividend = a[1:]
-        divisor = b[1:]
-
-        quotient = [0] * 31
+        dividend_mag = dividend.bits[1:]
+        divisor_mag = divisor.bits[1:]
         remainder = [0] * 31
+        quotient_full = []
 
-        for i in range(31):
+        total_steps = 31 + FRAC_BITS
+        for i in range(total_steps):
+            if i < 31:
+                next_bit = dividend_mag[i]
+            else:
+                next_bit = 0
+            remainder = remainder[1:] + [next_bit]
 
-            remainder = remainder[1:] + [dividend[i]]
+            if self.compare_bits(remainder, divisor_mag) >= 0:
+                remainder = self.sub_bits(remainder, divisor_mag)
+                quotient_full.append(1)
+            else:
+                quotient_full.append(0)
 
-            neg_divisor = self._negate([0] + divisor)
-            temp, _ = NumbersConverter._add_bits(
-                [0] + remainder,
-                neg_divisor
-            )
+        scaled_result = quotient_full[FRAC_BITS:FRAC_BITS + 31]
 
-            temp = temp[1:]
+        result_bits = [0] * 32
+        result_bits[0] = sign
+        result_bits[1:] = scaled_result
 
-            if temp[0] == 0:
-                remainder = temp
-                quotient[i] = 1
+        return NumbersConverter(result_bits)
 
-        quotient_value = 0
-        for bit in quotient:
-            quotient_value = (quotient_value << 1) + bit
+    def compare_bits(self, a_bits, b_bits):
+        for a, b in zip(a_bits, b_bits):
+            if a > b:
+                return 1
+            elif a < b:
+                return -1
+        return 0
 
-        if sign == 1:
-            quotient_value = -quotient_value
-
-        remainder_value = 0
-        for bit in remainder:
-            remainder_value = (remainder_value << 1) + bit
-
-        if a[0] == 1:
-            remainder_value = -remainder_value
-
-        return NumbersConverter(quotient_value), NumbersConverter(remainder_value)
-
-    @staticmethod
-    def _negate(bits: list[int]) -> list[int]:
-        inverted = [0 if b == 1 else 1 for b in bits]
-        one = [0] * 31 + [1]
-        result, _ = NumbersConverter._add_bits(inverted, one)
+    def sub_bits(self, a_bits, b_bits):
+        result = a_bits[:]
+        borrow = 0
+        for i in reversed(range(len(result))):
+            diff = result[i] - (b_bits[i] if i < len(b_bits) else 0) - borrow
+            if diff < 0:
+                diff += 2
+                borrow = 1
+            else:
+                borrow = 0
+            result[i] = diff
         return result
+
+    def shift_left(self, bits):
+        for i in range(1, 31):
+            bits[i] = bits[i + 1]
+        bits[31] = 0
+
+    def add_direct(self, a, b):
+        result = a[:]
+        carry = 0
+        for i in reversed(range(32)):
+            s = result[i] + b[i] + carry
+            result[i] = s % 2
+            carry = s // 2
+        return result
+
+    def is_zero(self, bits):
+        return all(b == 0 for b in bits[1:])

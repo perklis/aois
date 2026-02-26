@@ -1,106 +1,91 @@
-class NumbersConverter:
-    BITS = 32
-    ABS_BITS = 31
+from exceptions import InvalidDecimalInputError
 
-    def __init__(self, number: int) -> None:
-        self.number = number
-        self.direct_code = self._get_direct_code()
-        self.reversed_code = self._get_reversed_code()
-        self.additional_code = self._get_additional_code()
+FRAC_BITS = 5
+SCALE = 10**FRAC_BITS
+
+
+class NumbersConverter:
+    def __init__(self, bits):
+        self.bits = bits[:]
 
     @staticmethod
-    def _decimal_to_binary_abs(n: int) -> list[int]:
-        if n == 0:
-            return [0]
+    def from_decimal_to_direct_code(value):
+        if not isinstance(value, int):
+            raise InvalidDecimalInputError("Только целые (int) числа разрешены")
 
-        bits = []
-        n = abs(n)
+        bits = [0] * 32
+        if value < 0:
+            bits[0] = 1
+            value = -value
 
-        while n > 0:
-            remainder = n - (n >> 1 << 1) 
-            bits.append(remainder)
-            n = n >> 1                   
+        i = 31
+        while i >= 1:
+            bits[i] = value % 2
+            value = value // 2
+            i -= 1
 
-        bits.reverse()
-        return bits
+        return NumbersConverter(bits)
 
-    def _get_direct_code(self) -> list[int]:
-        sign = 0 if self.number >= 0 else 1
-        mag = self._decimal_to_binary_abs(self.number)
+    def from_direct_code_to_decimal(self):
+        abs_value = 0
+        for i in range(1, 32):
+            abs_value = abs_value * 2 + self.bits[i]
+        if self.bits[0] == 1:
+            abs_value = -abs_value
 
-        if len(mag) > self.ABS_BITS:
-            mag = mag[-self.ABS_BITS:]
-        else:
-            mag = [0] * (self.ABS_BITS - len(mag)) + mag
+        return abs_value
 
-        return [sign] + mag
+    def get_direct_code(self):
+        return self.bits[:]
 
-    def _get_reversed_code(self) -> list[int]:
-        if self.number >= 0:
-            return self.direct_code.copy()
+    def get_ones_complement(self):
+        result = self.bits[:]
+        if result[0] == 1:
+            for i in range(1, 32):
+                result[i] = 1 - result[i]
+        return result
 
-        inverted = [self.direct_code[0]]
-        for bit in self.direct_code[1:]:
-            inverted.append(0 if bit == 1 else 1)
-
-        return inverted
-
-    def _get_additional_code(self) -> list[int]:
-        if self.number >= 0:
-            return self.direct_code.copy()
-
-        inverted = [1] 
-
-        for bit in self.direct_code[1:]:
-            inverted.append(0 if bit == 1 else 1)
-
-        one = [0] * 31 + [1]
-        result, _ = self._add_bits(inverted, one)
+    def get_twos_complement(self):
+        result = self.get_ones_complement()
+        if result[0] == 0:
+            return result
+        carry_bit = 1
+        for i in reversed(range(32)):
+            bit_sum = result[i] + carry_bit
+            result[i] = bit_sum % 2
+            carry_bit = bit_sum // 2
         return result
 
     @staticmethod
-    def _add_bits(a: list[int], b: list[int]) -> tuple[list[int], int]:
-        carry = 0
-        result = [0] * 32
+    def from_twos_to_direct(bits):
+        sign = bits[0]
+        if sign == 0:
+            return NumbersConverter(bits[:])
+        inverted_bits = [1 - b for b in bits]
+        carry = 1
+        for i in reversed(range(32)):
+            bit_sum = inverted_bits[i] + carry
+            inverted_bits[i] = bit_sum % 2
+            carry = bit_sum // 2
+        inverted_bits[0] = 1
+        return NumbersConverter(inverted_bits)
 
-        for i in range(31, -1, -1):
-            s = a[i] + b[i] + carry
-            result[i] = s & 1
-            carry = 1 if s > 1 else 0
+    def to_decimal_scaled(self, scale=SCALE):
+        return self.from_direct_code_to_decimal() / scale
 
-        return result, carry
-
-    @classmethod
-    def additional_code_to_int(cls, code: list[int]) -> int:
-
-        if code[0] == 0:
-            value = 0
-            for bit in code:
-                value = (value << 1) + bit
-            return value
-
-        inverted = [0 if b == 1 else 1 for b in code]
-
-        one = [0] * 31 + [1]
-        plus1, _ = cls._add_bits(inverted, one)
-
-        value = 0
-        for bit in plus1:
-            value = (value << 1) + bit
-
-        return -value
-
-    @staticmethod
-    def _binary_to_int_unsigned(bits: list[int]) -> int:
-        value = 0
-        for bit in bits:
-            value = (value << 1) + bit
-        return value
-
-    def __str__(self) -> str:
+    def __str__(self):
         return (
-            f"\nЧисло: {self.number}\n"
-            f"Прямой код:        {self.direct_code}\n"
-            f"Обратный код:      {self.reversed_code}\n"
-            f"Дополнительный код:{self.additional_code}\n"
+            "\nДесятичное: "
+            + str(self.from_direct_code_to_decimal())
+            + "\nПрямой код:        "
+            + str(self.get_direct_code())
+            + "\nОбратный код:      "
+            + str(self.get_ones_complement())
+            + "\nДополнительный код:"
+            + str(self.get_twos_complement())
+            + "\n"
         )
+    
+    def to_decimal_division(self):
+        value = self.from_direct_code_to_decimal()
+        return value / (2 ** FRAC_BITS)
