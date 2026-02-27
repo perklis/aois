@@ -1,63 +1,79 @@
 import unittest
-from exceptions import BCD2421Error
 from BCD2421Calculator import BCD2421Calculator
+from exceptions import BCD2421Error
 
 class TestBCD2421Calculator(unittest.TestCase):
-
     def setUp(self):
         self.calc = BCD2421Calculator()
 
-    def test_digits_to_bits_and_back(self):
-        digits = [1, 2, 3, 4, 5, 0, 9]
-        bits = self.calc.digits_to_bits(digits)
-        restored = self.calc.bits_to_digits(bits)
-        self.assertEqual(digits, restored, "Преобразование digits -> bits -> digits не совпадает")
+    def test_digits_to_bits_single_digit(self):
+        self.assertEqual(self.calc.digits_to_bits([0]), [0, 0, 0, 0])
+        self.assertEqual(self.calc.digits_to_bits([5]), [1, 0, 1, 1])
+        self.assertEqual(self.calc.digits_to_bits([9]), [1, 1, 1, 1])
 
-    def test_single_digit_addition_no_carry(self):
-        a_bits = self.calc.digits_to_bits([2])[0:4]
-        b_bits = self.calc.digits_to_bits([3])[0:4]
-        result_bits, carry = self.calc.add_single_digit(a_bits, b_bits, 0)
-        result_digit = self.calc.bits_to_digits(result_bits)
-        self.assertEqual(result_digit, [5])
+    def test_digits_to_bits_multiple_digits(self):
+        self.assertEqual(
+            self.calc.digits_to_bits([1, 2, 3]),
+            [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1]
+        )
+
+    def test_digits_to_bits_invalid_digit(self):
+        with self.assertRaises(BCD2421Error):
+            self.calc.digits_to_bits([10])
+        with self.assertRaises(BCD2421Error):
+            self.calc.digits_to_bits([-1])
+
+    def test_bits_to_digits_single_digit(self):
+        self.assertEqual(self.calc.bits_to_digits([0, 0, 0, 0]), [0])
+        self.assertEqual(self.calc.bits_to_digits([1, 1, 1, 0]), [8])
+        self.assertEqual(self.calc.bits_to_digits([1, 0, 1, 1]), [5])
+
+    def test_bits_to_digits_multiple_digits(self):
+        bits = [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1]  
+        self.assertEqual(self.calc.bits_to_digits(bits), [1, 2, 5])
+
+    def test_bits_to_digits_invalid_length(self):
+        with self.assertRaises(BCD2421Error):
+            self.calc.bits_to_digits([0, 0, 0]) 
+
+    def test_bits_to_digits_invalid_pattern(self):
+        
+        with self.assertRaises(BCD2421Error):
+            self.calc.bits_to_digits([0,1,1,0]) 
+            
+    def test_add_single_digit_no_carry(self):
+        a_bits = self.calc.digits_to_bits([3])
+        b_bits = self.calc.digits_to_bits([4])
+        sum_bits, carry = self.calc.add_single_digit(a_bits, b_bits, 0)
+        self.assertEqual(self.calc.bits_to_digits(sum_bits), [7])
         self.assertEqual(carry, 0)
 
-    def test_single_digit_addition_with_carry(self):
-        a_bits = self.calc.digits_to_bits([7])[0:4]
-        b_bits = self.calc.digits_to_bits([5])[0:4]
-        result_bits, carry = self.calc.add_single_digit(a_bits, b_bits, 0)
-        result_digit = self.calc.bits_to_digits(result_bits)
-        self.assertEqual(result_digit, [2])
+    def test_add_single_digit_with_carry(self):
+        a_bits = self.calc.digits_to_bits([7])
+        b_bits = self.calc.digits_to_bits([5])
+        sum_bits, carry = self.calc.add_single_digit(a_bits, b_bits, 0)
+        self.assertEqual(self.calc.bits_to_digits(sum_bits), [2])
         self.assertEqual(carry, 1)
 
     def test_add_numbers_no_carry(self):
-        a = self.calc.digits_to_bits([1, 2])
-        b = self.calc.digits_to_bits([3, 4])
-        result = self.calc.add_numbers(a, b)
-        result_digits = self.calc.bits_to_digits(result)
-        self.assertEqual(result_digits, [4, 6])
+        a = [1, 2]  
+        b = [2, 3] 
+        result_bits, result_digits = self.calc.add_numbers(a, b)
+        self.assertEqual(result_digits, [3, 5])  
 
     def test_add_numbers_with_carry(self):
-        a = self.calc.digits_to_bits([9, 8])
-        b = self.calc.digits_to_bits([3, 5])
-        result = self.calc.add_numbers(a, b)
-        result_digits = self.calc.bits_to_digits(result)
-        self.assertEqual(result_digits, [1, 3, 3])
+        a = [2, 5]  
+        b = [1, 6]  
+        result_bits, result_digits = self.calc.add_numbers(a, b)
+        self.assertEqual(result_digits, [4, 1]) 
 
-    def test_invalid_digit_raises_error(self):
-        with self.assertRaises(BCD2421Error):
-            self.calc.digits_to_bits([10])
-
-    def test_invalid_bits_length_raises_error(self):
-        with self.assertRaises(BCD2421Error):
-            self.calc.bits_to_digits([0, 1, 0])  
-
-    def test_bits_to_digits_invalid_chunk_raises_error(self):
-        invalid_bits = [0, 0, 0, 0, 1, 1, 1, 0]  
-        with self.assertRaises(BCD2421Error):
-            self.calc.bits_to_digits(invalid_bits)
-
-    def test_add_numbers_length_mismatch_raises_error(self):
-        a = self.calc.digits_to_bits([1, 2])
-        b = self.calc.digits_to_bits([3])
-        with self.assertRaises(BCD2421Error):
-            self.calc.add_numbers(a, b)
+    def test_add_numbers_diff_length(self):
+        a = [1, 2]  
+        b = [9]    
+        result_bits, result_digits = self.calc.add_numbers(a, b)
+        self.assertEqual(result_digits, [2, 1]) 
+    def test_add_numbers_carry_overflow(self):
+        a = [9, 9]  
+        b = [1]    
+        result_bits, result_digits = self.calc.add_numbers(a, b)
+        self.assertEqual(result_digits, [1, 0, 0]) 

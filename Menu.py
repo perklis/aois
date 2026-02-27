@@ -57,23 +57,28 @@ class Menu:
     def input_numbers(self):
         while True:
             try:
-                a_input = input("Введите первое число: ").strip().replace(" ", "")
-                b_input = input("Введите второе число: ").strip().replace(" ", "")
-
                 if self.calc_type == "normal":
+                    a_input = input("Введите первое число: ").strip().replace(" ", "")
+                    b_input = input("Введите второе число: ").strip().replace(" ", "")
                     self.a = NumbersConverter.from_decimal_to_direct_code(int(a_input))
                     self.b = NumbersConverter.from_decimal_to_direct_code(int(b_input))
                     return
 
-                if self.calc_type == "ieee":
+                elif self.calc_type == "ieee":
+                    print("Введите числа (или nan, +inf, -inf):")
+                    a_input = input("Первое число: ").strip()
+                    b_input = input("Второе число: ").strip()
+
                     self.a = self.ieee_calc.decimal_to_ieee(a_input)
                     self.b = self.ieee_calc.decimal_to_ieee(b_input)
                     return
 
-                if self.calc_type == "bcd":
+                elif self.calc_type == "bcd":
+                    a_input = input("Введите первое число: ").strip().replace(" ", "")
+                    b_input = input("Введите второе число: ").strip().replace(" ", "")
                     self.a = [int(d) for d in a_input]
                     self.b = [int(d) for d in b_input]
-                    return
+                    return                
 
             except ValueError:
                 print("Введите корректные числа")
@@ -225,17 +230,13 @@ class Menu:
                 a_digits = [0] * (max_len - len(self.a)) + self.a
                 b_digits = [0] * (max_len - len(self.b)) + self.b
 
-                a_bits = self.bcd_calc.digits_to_bits(a_digits)
-                b_bits = self.bcd_calc.digits_to_bits(b_digits)
-
-                result_bits = self.bcd_calc.add_numbers(a_bits, b_bits)
-                result_digits = self.bcd_calc.bits_to_digits(result_bits)
+                result_bits, result_digits = self.bcd_calc.add_numbers(a_digits, b_digits)
 
                 print("\nСЛОЖЕНИЕ BCD 2421")
                 print("A:", a_digits)
-                print("A в битах:", a_bits)
+                print("A в битах:", self.bcd_calc.digits_to_bits(a_digits))
                 print("B:", b_digits)
-                print("B в битах:", b_bits)
+                print("B в битах:", self.bcd_calc.digits_to_bits(b_digits))
                 print("Результат:", result_digits)
                 print("Результат в битах:", result_bits)
 

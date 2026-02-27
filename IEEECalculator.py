@@ -81,7 +81,15 @@ class IEEECalculator:
         return IEEENumber([sign] + exponent_bits + mantissa_bits)
 
     def decimal_to_ieee(self, number_str: str):
-        number_str = number_str.strip()
+        number_str = number_str.strip().lower()
+
+        if number_str in ("inf", "+inf", "INF", "+INF"):
+            return IEEENumber([0] + [1]*8 + [0]*23)  
+        if number_str in ("-inf", "-INF"):
+            return IEEENumber([1] + [1]*8 + [0]*23) 
+        if number_str in ("nan", "NaN", "NAN"):
+            return IEEENumber([0] + [1]*8 + [1] + [0]*22) 
+
 
         sign, number_str = self._extract_sign(number_str)
         int_part_str, frac_part_str = self._split_parts(number_str)
@@ -165,7 +173,27 @@ class IEEECalculator:
 
         return IEEENumber([sign_res] + exponent_bits + mantissa_bits)
 
+    def is_nan(self, num: IEEENumber):
+        exp = self.bits.bits_to_int(num.get_exponent_bits())
+        mant = num.get_mantissa_bits()
+        return exp == 255 and any(b == 1 for b in mant)
+
+    def is_infinity(self, num: IEEENumber):
+        exp = self.bits.bits_to_int(num.get_exponent_bits())
+        mant = num.get_mantissa_bits()
+        return exp == 255 and all(b == 0 for b in mant)
+
     def add(self, A: IEEENumber, B: IEEENumber):
+
+        if self.is_nan(A) or self.is_nan(B):
+            return IEEENumber([0] + [1]*8 + [1] + [0]*22)
+    
+        if self.is_infinity(A):
+            if self.is_infinity(B) and A.get_sign() != B.get_sign():
+                return IEEENumber([0] + [1]*8 + [1] + [0]*22)
+            return A.copy()
+        if self.is_infinity(B):
+            return B.copy()
         if self.is_zero(A):
             return B.copy()
         if self.is_zero(B):

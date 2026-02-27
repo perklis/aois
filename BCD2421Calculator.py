@@ -8,37 +8,12 @@ class BCD2421Calculator:
         2: (0, 0, 1, 0),
         3: (0, 0, 1, 1),
         4: (0, 1, 0, 0),
-        5: (1, 0, 0, 0),
-        6: (1, 0, 0, 1),
-        7: (1, 0, 1, 0),
-        8: (1, 0, 1, 1),
-        9: (0, 1, 1, 1),
+        5: (1, 0, 1, 1),
+        6: (1, 1, 0, 0),
+        7: (1, 1, 0, 1),
+        8: (1, 1, 1, 0),
+        9: (1, 1, 1, 1),
     }
-
-    def __init__(self):
-        self.add_table = {}
-        self._build_add_table()
-
-    def _build_add_table(self):
-        for a_digit in range(10):
-            for b_digit in range(10):
-                for carry_in in (0, 1):
-                    self.add_table[
-                        (
-                            self.DIGITS_TO_2421[a_digit],
-                            self.DIGITS_TO_2421[b_digit],
-                            carry_in,
-                        )
-                    ] = self._compute_sum(a_digit, b_digit, carry_in)
-
-    @staticmethod
-    def _compute_sum(a, b, carry_in):
-        sum_carrys = a + b + carry_in
-        carry_out = 0
-        if sum_carrys >= 10:
-            sum_carrys -= 10
-            carry_out = 1
-        return (sum_carrys, carry_out)
 
     def digits_to_bits(self, digits):
         bits = []
@@ -61,24 +36,41 @@ class BCD2421Calculator:
         return digits
 
     def add_single_digit(self, a_bits, b_bits, carry_in):
-        key = (tuple(a_bits), tuple(b_bits), carry_in)
-        if key not in self.add_table:
-            raise BCD2421Error(f"Ошибка сложения {a_bits}и {b_bits}")
-        sum_digit, carry_out = self.add_table[key]
-        return self.DIGITS_TO_2421[sum_digit], carry_out
+        a_digit = self.bits_to_digits(a_bits)[0]
+        b_digit = self.bits_to_digits(b_bits)[0]
 
-    def add_numbers(self, a_bits, b_bits):
-        if len(a_bits) != len(b_bits):
-            raise BCD2421Error("Длина битов должна совпадать")
+        total = a_digit + b_digit + carry_in
+        if total >= 10:
+            total -= 10
+            carry_out = 1
+        else:
+            carry_out = 0
 
-        result = []
+        return list(self.DIGITS_TO_2421[total]), carry_out
+
+    def add_numbers(self, a_digits, b_digits):
+        max_len = max(len(a_digits), len(b_digits))
+        a_digits = [0] * (max_len - len(a_digits)) + a_digits
+        b_digits = [0] * (max_len - len(b_digits)) + b_digits
+
+        a_bits = []
+        b_bits = []
+        for d in a_digits:
+            a_bits.extend(self.DIGITS_TO_2421[d])
+        for d in b_digits:
+            b_bits.extend(self.DIGITS_TO_2421[d])
+
+        result_bits = []
         carry = 0
-        for i in range(len(a_bits) - 4, -1, -4):
-            a_part = a_bits[i : i + 4]
-            b_part = b_bits[i : i + 4]
-            sum_chunk, carry = self.add_single_digit(a_part, b_part, carry)
-            result = list(sum_chunk) + result
+        for i in range(max_len - 1, -1, -1):
+            a_chunk = a_bits[i*4:(i+1)*4]
+            b_chunk = b_bits[i*4:(i+1)*4]
+            sum_chunk, carry = self.add_single_digit(a_chunk, b_chunk, carry)
+            result_bits = sum_chunk + result_bits
 
         if carry:
-            result = [0, 0, 0, 1] + result
-        return result
+            result_bits = list(self.DIGITS_TO_2421[carry]) + result_bits
+
+        result_digits = self.bits_to_digits(result_bits)
+        return result_bits, result_digits
+
