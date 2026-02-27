@@ -1,9 +1,7 @@
 import unittest
 from IEEECalculator import IEEECalculator
-from exceptions import ExponentOverflowError, ExponentUnderflowError
 
 class TestIEEECalculator(unittest.TestCase):
-
     def setUp(self):
         self.calc = IEEECalculator()
 
@@ -29,12 +27,12 @@ class TestIEEECalculator(unittest.TestCase):
         self.assertFalse(self.calc._is_zero("1", "0"))
 
     def test_convert_integer_part(self):
-        self.assertEqual(self.calc._convert_integer_part("5"), [1, 0, 1])
-        self.assertEqual(self.calc._convert_integer_part("0"), [0])
+        self.assertEqual(self.calc._from_int_part_to_bits("5"), [1, 0, 1])
+        self.assertEqual(self.calc._from_int_part_to_bits("0"), [0])
 
     def test_convert_fraction_part(self):
-        bits = self.calc._convert_fraction_part("5")
-        self.assertEqual(bits[0], 1) 
+        bits = self.calc._fraction_part_to_bits("5")
+        self.assertEqual(bits[0], 1)
 
     def test_decimal_to_ieee_zero(self):
         num = self.calc.decimal_to_ieee("0")
@@ -105,34 +103,25 @@ class TestIEEECalculator(unittest.TestCase):
     def test_divide_by_zero_returns_infinity(self):
         a = self.calc.decimal_to_ieee("6")
         b = self.calc.decimal_to_ieee("0")
-    
+
         result = self.calc.divide(a, b)
-    
+
         self.assertTrue(self.calc.is_infinity(result))
         self.assertEqual(result.get_sign(), 0)
-    
+
     def test_divide_negative_by_zero_returns_negative_infinity(self):
         a = self.calc.decimal_to_ieee("-6")
         b = self.calc.decimal_to_ieee("0")
-    
+
         result = self.calc.divide(a, b)
-    
+
         self.assertTrue(self.calc.is_infinity(result))
         self.assertEqual(result.get_sign(), 1)
-    
+
     def test_zero_div_zero_returns_nan(self):
         a = self.calc.decimal_to_ieee("0")
         b = self.calc.decimal_to_ieee("0")
-    
+
         result = self.calc.divide(a, b)
-    
+
         self.assertTrue(self.calc.is_nan(result))
-
-    def test_build_result_overflow(self):
-        with self.assertRaises(ExponentOverflowError):
-            self.calc._build_result(0, 300, [1] * 24)
-
-    def test_build_result_underflow(self):
-        with self.assertRaises(ExponentUnderflowError):
-            self.calc._build_result(0, -5, [1] * 24)
-

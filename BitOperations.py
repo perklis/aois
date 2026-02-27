@@ -17,9 +17,9 @@ class BitOperations:
         result = [0] * len(a)
         carry = 0
         for i in range(len(a) - 1, -1, -1):
-            s = a[i] + b[i] + carry
-            result[i] = s % 2
-            carry = s // 2
+            sum = a[i] + b[i] + carry
+            result[i] = sum % 2
+            carry = sum // 2
         return result, carry
 
     def subtract_bits(self, a, b):
@@ -29,15 +29,14 @@ class BitOperations:
 
         result = [0] * max_len
         borrow = 0
-
         for i in range(max_len - 1, -1, -1):
-            s = a[i] - b[i] - borrow
-            if s < 0:
-                s += 2
+            sum = a[i] - b[i] - borrow
+            if sum < 0:
+                sum += 2
                 borrow = 1
             else:
                 borrow = 0
-            result[i] = s
+            result[i] = sum
 
         return result
 
@@ -62,14 +61,14 @@ class BitOperations:
             bits[0] = 0
 
     def sub_register(self, a, b):
-        res = a[:]
+        result = a[:]
         borrow = 0
         for i in range(len(a) - 1, -1, -1):
-            d = res[i] - b[i] - borrow
-            if d < 0:
-                d += 2
+            step_result = result[i] - b[i] - borrow
+            if step_result < 0:
+                step_result += 2
                 borrow = 1
             else:
                 borrow = 0
-            res[i] = d
-        return res
+            result[i] = step_result
+        return result

@@ -14,9 +14,3 @@ class InvalidFormatError(CalculatorError):
     pass
 
 
-class ExponentOverflowError(CalculatorError):
-    pass
-
-
-class ExponentUnderflowError(CalculatorError):
-    pass

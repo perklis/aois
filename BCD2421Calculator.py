@@ -39,14 +39,14 @@ class BCD2421Calculator:
         a_digit = self.bits_to_digits(a_bits)[0]
         b_digit = self.bits_to_digits(b_bits)[0]
 
-        total = a_digit + b_digit + carry_in
-        if total >= 10:
-            total -= 10
+        sum = a_digit + b_digit + carry_in
+        if sum >= 10:
+            sum -= 10
             carry_out = 1
         else:
             carry_out = 0
 
-        return list(self.DIGITS_TO_2421[total]), carry_out
+        return list(self.DIGITS_TO_2421[sum]), carry_out
 
     def add_numbers(self, a_digits, b_digits):
         max_len = max(len(a_digits), len(b_digits))
@@ -63,14 +63,13 @@ class BCD2421Calculator:
         result_bits = []
         carry = 0
         for i in range(max_len - 1, -1, -1):
-            a_chunk = a_bits[i*4:(i+1)*4]
-            b_chunk = b_bits[i*4:(i+1)*4]
-            sum_chunk, carry = self.add_single_digit(a_chunk, b_chunk, carry)
-            result_bits = sum_chunk + result_bits
+            a_part = a_bits[i*4:(i+1)*4]
+            b_part = b_bits[i*4:(i+1)*4]
+            sum_part_number, carry = self.add_single_digit(a_part, b_part, carry)
+            result_bits = sum_part_number + result_bits
 
         if carry:
             result_bits = list(self.DIGITS_TO_2421[carry]) + result_bits
 
         result_digits = self.bits_to_digits(result_bits)
         return result_bits, result_digits
-

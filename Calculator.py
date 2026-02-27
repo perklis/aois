@@ -48,21 +48,21 @@ class Calculator:
 
         sign = dividend.bits[0] ^ divisor.bits[0]
 
-        dividend_mag = dividend.bits[1:]
-        divisor_mag = divisor.bits[1:]
+        dividend_abs = dividend.bits[1:]
+        divisor_abs = divisor.bits[1:]
         remainder = [0] * 31
         quotient_full = []
 
         total_steps = 31 + FRAC_BITS
         for i in range(total_steps):
             if i < 31:
-                next_bit = dividend_mag[i]
+                next_bit = dividend_abs[i]
             else:
                 next_bit = 0
             remainder = remainder[1:] + [next_bit]
 
-            if self.bits.compare_register(remainder, divisor_mag) >= 0:
-                remainder = self.bits.sub_register(remainder, divisor_mag)
+            if self.bits.compare_register(remainder, divisor_abs) >= 0:
+                remainder = self.bits.sub_register(remainder, divisor_abs)
                 quotient_full.append(1)
             else:
                 quotient_full.append(0)
