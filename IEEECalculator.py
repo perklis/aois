@@ -1,6 +1,6 @@
 from IEEENumbers import IEEENumber
 from BitOperations import BitOperations
-from exceptions import ExponentOverflowError, ExponentUnderflowError, DivisionByZeroError
+from exceptions import ExponentOverflowError, ExponentUnderflowError
 
 class IEEECalculator:
     BIAS = 127
@@ -354,8 +354,11 @@ class IEEECalculator:
         return quotient, shift
 
     def divide(self, a: IEEENumber, b: IEEENumber) -> IEEENumber:
+        if self.is_zero(a) and self.is_zero(b):
+            return IEEENumber([0] + [1]*8 + [1] + [0]*22)
         if self.is_zero(b):
-            raise DivisionByZeroError("Деление на ноль")
+            sign = a.get_sign() ^ b.get_sign()
+            return IEEENumber([sign] + [1]*8 + [0]*23)        
         if self.is_zero(a):
             return IEEENumber([0] * 32)
 

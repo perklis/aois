@@ -20,7 +20,3 @@ class ExponentOverflowError(CalculatorError):
 
 class ExponentUnderflowError(CalculatorError):
     pass
-
-
-class DivisionByZeroError(CalculatorError):
-    pass

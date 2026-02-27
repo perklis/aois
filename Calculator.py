@@ -1,4 +1,4 @@
-from NumbersConverter import NumbersConverter, SCALE, FRAC_BITS
+from NumbersConverter import NumbersConverter, FRAC_BITS
 from BitOperations import BitOperations
 
 class Calculator:

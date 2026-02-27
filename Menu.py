@@ -2,7 +2,7 @@ from NumbersConverter import NumbersConverter
 from Calculator import Calculator
 from IEEECalculator import IEEECalculator
 from BCD2421Calculator import BCD2421Calculator
-from exceptions import BCD2421Error, DivisionByZeroError
+from exceptions import BCD2421Error
 
 
 class Menu:
@@ -25,8 +25,6 @@ class Menu:
                 self.handle_choice(choice)
             except ValueError:
                 print("Ошибка ввода")
-            except DivisionByZeroError:
-                print("Ошибка: деление на 0")
             except KeyboardInterrupt:
                 print("\nВыход")
                 self.running = False
@@ -63,7 +61,6 @@ class Menu:
                     self.a = NumbersConverter.from_decimal_to_direct_code(int(a_input))
                     self.b = NumbersConverter.from_decimal_to_direct_code(int(b_input))
                     return
-
                 elif self.calc_type == "ieee":
                     print("Введите числа (или nan, +inf, -inf):")
                     a_input = input("Первое число: ").strip()
@@ -89,14 +86,12 @@ class Menu:
         if self.calc_type == "normal":
             print("A =", self.a.from_direct_code_to_decimal())
             print("B =", self.b.from_direct_code_to_decimal())
-
         if self.calc_type == "ieee":
             print("A:", self.a.get_bits_str())
             print("A:", self.a.from_bits_to_decimal())
 
             print("B:", self.b.get_bits_str())
             print("B:", self.b.from_bits_to_decimal())
-
         if self.calc_type == "bcd":
             print("A:", self.a)
             print("A:", self.bcd_calc.digits_to_bits(self.a))
@@ -104,7 +99,6 @@ class Menu:
             print("B:", self.bcd_calc.digits_to_bits(self.b))
 
         print("\nВыберите операцию:")
-
         if self.calc_type == "normal":
             print("1. Показать прямой, обратный, дополнительный код")
             print("2. Сложение")
@@ -117,7 +111,6 @@ class Menu:
             print("2. Вычитание")
             print("3. Умножение")
             print("4. Деление")
-
         if self.calc_type == "bcd":
             print("1. Сложение BCD 2421")
 
@@ -125,61 +118,58 @@ class Menu:
         print("0. Выход")
 
     def handle_choice(self, choice):
-
         if self.calc_type == "normal":
             self._handle_normal(choice)
-
         elif self.calc_type == "ieee":
             self._handle_ieee(choice)
-
         elif self.calc_type == "bcd":
             self._handle_bcd(choice)
 
     def _handle_normal(self, choice):
+        try:
+            if choice == "1":
+                print("\nЧИСЛО A")
+                print(self.a)
+                print("\nЧИСЛО B")
+                print(self.b)
+                return
 
-        if choice == "1":
-            print("\nЧИСЛО A")
-            print(self.a)
-            print("\nЧИСЛО B")
-            print(self.b)
-            return
+            if choice == "2":
+                print("\nСЛОЖЕНИЕ")
+                print(self.calc.add(self.a, self.b))
+                return
 
-        if choice == "2":
-            print("\nСЛОЖЕНИЕ")
-            print(self.calc.add(self.a, self.b))
-            return
+            if choice == "3":
+                print("\nВЫЧИТАНИЕ")
+                print(self.calc.subtract(self.a, self.b))
+                return
 
-        if choice == "3":
-            print("\nВЫЧИТАНИЕ")
-            print(self.calc.subtract(self.a, self.b))
-            return
+            if choice == "4":
+                print("\nУМНОЖЕНИЕ")
+                print(self.calc.multiply(self.a, self.b))
+                return
 
-        if choice == "4":
-            print("\nУМНОЖЕНИЕ")
-            print(self.calc.multiply(self.a, self.b))
-            return
+            if choice == "5":
+                result = self.calc.divide(self.a, self.b)
+                print("\nДЕЛЕНИЕ")
+                print("Десятичное:", result.to_decimal_division())
+                print("Прямой:       ", result.get_direct_code())
+                print("Обратный:     ", result.get_ones_complement())
+                print("Дополнительный:", result.get_twos_complement())
+                return
 
-        if choice == "5":
-            result = self.calc.divide(self.a, self.b)
-            print("\nДЕЛЕНИЕ")
-            print("Десятичное:", result.to_decimal_division())
-            print("Прямой:       ", result.get_direct_code())
-            print("Обратный:     ", result.get_ones_complement())
-            print("Дополнительный:", result.get_twos_complement())
-            return
+            if choice == "6":
+                self.input_numbers()
+                return
+            if choice == "0":
+                self.running = False
+                return
 
-        if choice == "6":
-            self.input_numbers()
-            return
-
-        if choice == "0":
-            self.running = False
-            return
-
-        print("Попробуй снова")
+            print("Попробуй снова")
+        except ZeroDivisionError:
+            print("Ошибка: деление на 0")
 
     def _handle_ieee(self, choice):
-
         if choice == "1":
             result = self.ieee_calc.add(self.a, self.b)
             operation_name = "СЛОЖЕНИЕ"

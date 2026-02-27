@@ -8,7 +8,6 @@ from BCD2421Calculator import BCD2421Calculator
 
 
 class TestMenu(unittest.TestCase):
-
     def setUp(self):
         self.print_patcher = patch("builtins.print")
         self.mock_print = self.print_patcher.start()
@@ -111,25 +110,13 @@ class TestMenu(unittest.TestCase):
         menu._handle_bcd("99")
         self.assertTrue(menu.running)
 
-    @patch("builtins.input", side_effect=[
-        "2",
-        "2",
-        "3",
-        "1",
-        "0"  
-    ])
+    @patch("builtins.input", side_effect=["2", "2", "3", "1", "0"])
     def test_run_ieee_add_and_exit(self, _):
         menu = Menu()
         menu.run()
         self.assertFalse(menu.running)
 
-    @patch("builtins.input", side_effect=[
-        "2", 
-        "5",      
-        "0",     
-        "4",     
-        "0"       
-    ])
+    @patch("builtins.input", side_effect=["2", "5", "0", "4", "0"])
     def test_division_by_zero_in_run(self, _):
         menu = Menu()
         menu.run()
@@ -157,8 +144,12 @@ class TestMenu(unittest.TestCase):
         menu.calc_type = "normal"
         menu.calc = Calculator()
         menu.a = Calculator().add(
-            __import__("NumbersConverter").NumbersConverter.from_decimal_to_direct_code(1),
-            __import__("NumbersConverter").NumbersConverter.from_decimal_to_direct_code(0)
+            __import__("NumbersConverter").NumbersConverter.from_decimal_to_direct_code(
+                1
+            ),
+            __import__("NumbersConverter").NumbersConverter.from_decimal_to_direct_code(
+                0
+            ),
         )
         menu.b = menu.a
         menu.print_menu()
@@ -186,14 +177,18 @@ class TestMenu(unittest.TestCase):
         menu = Menu()
         menu.calc_type = "normal"
         menu.calc = Calculator()
-        menu.a = __import__("NumbersConverter").NumbersConverter.from_decimal_to_direct_code(8)
-        menu.b = __import__("NumbersConverter").NumbersConverter.from_decimal_to_direct_code(2)
+        menu.a = __import__(
+            "NumbersConverter"
+        ).NumbersConverter.from_decimal_to_direct_code(8)
+        menu.b = __import__(
+            "NumbersConverter"
+        ).NumbersConverter.from_decimal_to_direct_code(2)
 
-        menu._handle_normal("1")  
-        menu._handle_normal("2")  
-        menu._handle_normal("3")  
-        menu._handle_normal("4") 
-        menu._handle_normal("5") 
+        menu._handle_normal("1")
+        menu._handle_normal("2")
+        menu._handle_normal("3")
+        menu._handle_normal("4")
+        menu._handle_normal("5")
 
         self.assertTrue(self.mock_print.called)
 
@@ -204,10 +199,10 @@ class TestMenu(unittest.TestCase):
         menu.a = menu.ieee_calc.decimal_to_ieee("6.0")
         menu.b = menu.ieee_calc.decimal_to_ieee("2.0")
 
-        menu._handle_ieee("1") 
-        menu._handle_ieee("2")  
-        menu._handle_ieee("3")  
-        menu._handle_ieee("4") 
+        menu._handle_ieee("1")
+        menu._handle_ieee("2")
+        menu._handle_ieee("3")
+        menu._handle_ieee("4")
 
         self.assertTrue(self.mock_print.called)
 
@@ -237,16 +232,8 @@ class TestMenu(unittest.TestCase):
         menu.input_numbers()
         self.assertIsNotNone(menu.a)
 
-    @patch("builtins.input", side_effect=[
-        "1",   
-        "1",    
-        "2",    
-        "x",   
-        "0"    
-    ])
+    @patch("builtins.input", side_effect=["1", "1", "2", "x", "0"])
     def test_run_value_error_branch(self, _):
         menu = Menu()
         menu.run()
         self.assertFalse(menu.running)
-
-  

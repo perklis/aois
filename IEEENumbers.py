@@ -41,10 +41,8 @@ class IEEENumber:
         bias = 127
         if exponent_decimal == 0 and all(b == 0 for b in mantissa_bits):
             return -0.0 if sign == 1 else 0.0
-
         if exponent_decimal == 255 and all(b == 0 for b in mantissa_bits):
             return float("-inf") if sign == 1 else float("inf")
-
         if exponent_decimal == 255 and any(b == 1 for b in mantissa_bits):
             return float("nan")
 

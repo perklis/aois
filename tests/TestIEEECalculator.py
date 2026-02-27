@@ -1,6 +1,6 @@
 import unittest
 from IEEECalculator import IEEECalculator
-from exceptions import ExponentOverflowError, ExponentUnderflowError, DivisionByZeroError
+from exceptions import ExponentOverflowError, ExponentUnderflowError
 
 class TestIEEECalculator(unittest.TestCase):
 
@@ -102,11 +102,31 @@ class TestIEEECalculator(unittest.TestCase):
         result = self.calc.divide(a, b)
         self.assertEqual(result.get_sign(), 1)
 
-    def test_divide_by_zero(self):
+    def test_divide_by_zero_returns_infinity(self):
         a = self.calc.decimal_to_ieee("6")
         b = self.calc.decimal_to_ieee("0")
-        with self.assertRaises(DivisionByZeroError):
-            self.calc.divide(a, b)
+    
+        result = self.calc.divide(a, b)
+    
+        self.assertTrue(self.calc.is_infinity(result))
+        self.assertEqual(result.get_sign(), 0)
+    
+    def test_divide_negative_by_zero_returns_negative_infinity(self):
+        a = self.calc.decimal_to_ieee("-6")
+        b = self.calc.decimal_to_ieee("0")
+    
+        result = self.calc.divide(a, b)
+    
+        self.assertTrue(self.calc.is_infinity(result))
+        self.assertEqual(result.get_sign(), 1)
+    
+    def test_zero_div_zero_returns_nan(self):
+        a = self.calc.decimal_to_ieee("0")
+        b = self.calc.decimal_to_ieee("0")
+    
+        result = self.calc.divide(a, b)
+    
+        self.assertTrue(self.calc.is_nan(result))
 
     def test_build_result_overflow(self):
         with self.assertRaises(ExponentOverflowError):
