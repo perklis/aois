@@ -1,9 +1,8 @@
 from IEEENumbers import IEEENumber
 from BitOperations import BitOperations
-
+from config import MANTISSA_LENGTH, BITS_32, EXP_BITS,EXP_MAX,BIAS 
 
 class IEEECalculator:
-    BIAS = 127
 
     def __init__(self):
         self.bits = BitOperations()
@@ -63,32 +62,32 @@ class IEEECalculator:
             exponent = -(shift + 1)
             mantissa_bits = frac_bits[shift + 1 :]
 
-        exponent += self.BIAS
-        mantissa_bits = mantissa_bits[:23]
-        while len(mantissa_bits) < 23:
+        exponent += BIAS
+        mantissa_bits = mantissa_bits[:MANTISSA_LENGTH]
+        while len(mantissa_bits) < MANTISSA_LENGTH:
             mantissa_bits.append(0)
 
         return exponent, mantissa_bits
 
     def _build_ieee_number(self, sign, exponent, mantissa_bits):
-        exponent_bits = self.bits.int_to_bits(exponent, 8)
+        exponent_bits = self.bits.int_to_bits(exponent, EXP_BITS)
         return IEEENumber([sign] + exponent_bits + mantissa_bits)
 
     def decimal_to_ieee(self, number_str: str):
         number_str = number_str.strip().lower()
 
         if number_str in ("inf", "+inf", "INF", "+INF"):
-            return IEEENumber([0] + [1] * 8 + [0] * 23)
+            return IEEENumber([0] + [1] * EXP_BITS + [0] * MANTISSA_LENGTH)
         if number_str in ("-inf", "-INF"):
-            return IEEENumber([1] + [1] * 8 + [0] * 23)
+            return IEEENumber([1] + [1] * EXP_BITS+ [0] * MANTISSA_LENGTH)
         if number_str in ("nan", "NaN", "NAN"):
-            return IEEENumber([0] + [1] * 8 + [1] + [0] * 22)
+            return IEEENumber([0] + [1] * EXP_BITS + [1] + [0] * (MANTISSA_LENGTH - 1))
 
         sign, number_str = self._extract_sign(number_str)
         int_part_str, frac_part_str = self._split_parts(number_str)
 
         if self._is_zero(int_part_str, frac_part_str):
-            return IEEENumber([sign] + [0] * 31)
+            return IEEENumber([sign] + [0] * (BITS_32-1))
 
         int_bits = self._from_int_part_to_bits(int_part_str)
         frac_bits = self._fraction_part_to_bits(frac_part_str)
@@ -106,9 +105,9 @@ class IEEECalculator:
         mant_a = self.get_mantissa_with_hidden(A)
         mant_b = self.get_mantissa_with_hidden(B)
 
-        while len(mant_a) < 24:
+        while len(mant_a) < MANTISSA_LENGTH +1:
             mant_a.append(0)
-        while len(mant_b) < 24:
+        while len(mant_b) < MANTISSA_LENGTH +1:
             mant_b.append(0)
 
         return sign_a, sign_b, exp_a, exp_b, mant_a, mant_b
@@ -141,43 +140,43 @@ class IEEECalculator:
                 return self.bits.subtract_bits(mant_b, mant_a), sign_b, 0
 
     def _normalize_after_overflow(self, mant_res, exponent):
-        if mant_res[7] == 1:
+        if mant_res[EXP_BITS-1] == 1:
             self.bits.move_right(mant_res, 1)
             exponent += 1
 
-        while mant_res[8] == 0 and exponent > 0:
+        while mant_res[EXP_BITS] == 0 and exponent > 0:
             self.bits.move_left(mant_res, 1)
             exponent -= 1
 
         return mant_res, exponent
 
     def _build_add_result(self, sign_res, exponent, mant_res):
-        if exponent >= 255:
-            return IEEENumber([sign_res] + [1] * 8 + [0] * 23)
+        if exponent >= EXP_MAX:
+            return IEEENumber([sign_res] + [1] * EXP_BITS + [0] * MANTISSA_LENGTH)
         if exponent <= 0:
-            return IEEENumber([0] * 32)
+            return IEEENumber([0] * MANTISSA_LENGTH)
 
-        mantissa_bits = mant_res[9:32]
-        exponent_bits = self.bits.int_to_bits(exponent, 8)
+        mantissa_bits = mant_res[(EXP_BITS+1):MANTISSA_LENGTH]
+        exponent_bits = self.bits.int_to_bits(exponent, EXP_BITS)
         return IEEENumber([sign_res] + exponent_bits + mantissa_bits)
 
     def is_nan(self, num: IEEENumber):
         exp = self.bits.bits_to_int(num.get_exponent_bits())
         mant = num.get_mantissa_bits()
-        return exp == 255 and any(b == 1 for b in mant)
+        return exp == EXP_MAX and any(b == 1 for b in mant)
 
     def is_infinity(self, num: IEEENumber):
         exp = self.bits.bits_to_int(num.get_exponent_bits())
         mant = num.get_mantissa_bits()
-        return exp == 255 and all(b == 0 for b in mant)
+        return exp == EXP_MAX and all(b == 0 for b in mant)
 
     def add(self, A: IEEENumber, B: IEEENumber):
         if self.is_nan(A) or self.is_nan(B):
-            return IEEENumber([0] + [1] * 8 + [1] + [0] * 22)
+            return IEEENumber([0] + [1] * EXP_BITS + [1] + [0] * (MANTISSA_LENGTH-1))
 
         if self.is_infinity(A):
             if self.is_infinity(B) and A.get_sign() != B.get_sign():
-                return IEEENumber([0] + [1] * 8 + [1] + [0] * 22)
+                return IEEENumber([0] + [1] * EXP_BITS + [1] + [0] * (MANTISSA_LENGTH-1))
             return A.copy()
         if self.is_infinity(B):
             return B.copy()
@@ -194,7 +193,7 @@ class IEEECalculator:
         )
 
         if mant_res is None:
-            return IEEENumber([0] * 32)
+            return IEEENumber([0] * BITS_32)
 
         exponent += carry_shift
         mant_res, exponent = self._normalize_after_overflow(mant_res, exponent)
@@ -218,7 +217,7 @@ class IEEECalculator:
         exp_a = self.bits.bits_to_int(a.get_exponent_bits())
         exp_b = self.bits.bits_to_int(b.get_exponent_bits())
 
-        exponent = exp_a + exp_b - self.BIAS
+        exponent = exp_a + exp_b - BIAS
 
         mant_a = [1] + a.get_mantissa_bits()
         mant_b = [1] + b.get_mantissa_bits()
@@ -226,18 +225,18 @@ class IEEECalculator:
         return sign, exponent, mant_a, mant_b
 
     def _multiply_mantissas(self, mant_a, mant_b):
-        product = [0] * 48
+        product = [0] * ((MANTISSA_LENGTH+1)*2)
 
-        for i in range(24):
-            if mant_b[23 - i] == 1:
+        for i in range(MANTISSA_LENGTH + 1):
+            if mant_b[MANTISSA_LENGTH - i] == 1:
                 carry = 0
-                for j in range(24):
-                    idx = 47 - (i + j)
-                    sum = product[idx] + mant_a[23 - j] + carry
+                for j in range(MANTISSA_LENGTH + 1):
+                    idx = ((MANTISSA_LENGTH*2)-1) - (i + j)
+                    sum = product[idx] + mant_a[MANTISSA_LENGTH - j] + carry
                     product[idx] = sum % 2
                     carry = sum // 2
 
-                k = 47 - (i + 24)
+                k = ((MANTISSA_LENGTH*2)-1) - (i + MANTISSA_LENGTH+1)
                 while carry and k >= 0:
                     sum = product[k] + carry
                     product[k] = sum % 2
@@ -247,23 +246,23 @@ class IEEECalculator:
 
     def _normalize_product(self, product, exponent):
         if product[0] == 1:
-            mantissa_full = product[0:25]
-            rest = product[25:]
+            mantissa_full = product[0:MANTISSA_LENGTH+2]
+            rest = product[MANTISSA_LENGTH+2:]
             exponent += 1
         else:
-            mantissa_full = product[1:26]
-            rest = product[26:]
+            mantissa_full = product[1:MANTISSA_LENGTH+3]
+            rest = product[MANTISSA_LENGTH+3:]
 
         return mantissa_full, rest, exponent
 
     def _round_mantissa(self, mantissa_full, rest, exponent):
-        mantissa_24 = mantissa_full[:24]
-        extra_bit_for_rounding = mantissa_full[24]
+        mantissa_24 = mantissa_full[:MANTISSA_LENGTH+1]
+        extra_bit_for_rounding = mantissa_full[MANTISSA_LENGTH+1]
         sticky = 1 if any(rest) else 0
 
         if extra_bit_for_rounding == 1 and (sticky == 1 or mantissa_24[-1] == 1):
             carry = 1
-            for i in range(23, -1, -1):
+            for i in range(MANTISSA_LENGTH, -1, -1):
                 sum = mantissa_24[i] + carry
                 mantissa_24[i] = sum % 2
                 carry = sum // 2
@@ -274,24 +273,24 @@ class IEEECalculator:
         return mantissa_24, exponent
 
     def _build_result(self, sign, exponent, mantissa_24):
-        if exponent >= 255:
-            return IEEENumber([sign] + [1]*8 + [0]*23)
+        if exponent >= EXP_MAX:
+            return IEEENumber([sign] + [1]*EXP_BITS + [0]*MANTISSA_LENGTH)
         if exponent <= 0:
-            return IEEENumber([0]*32)
+            return IEEENumber([0]*BITS_32)
 
         bits = [sign]
-        bits += self.bits.int_to_bits(exponent, 8)
+        bits += self.bits.int_to_bits(exponent, EXP_BITS)
 
-        for i in range(23):
+        for i in range(MANTISSA_LENGTH):
             bits.append(mantissa_24[i + 1])
 
         return IEEENumber(bits)
 
     def multiply(self, a: IEEENumber, b: IEEENumber) -> IEEENumber:
         if self.is_nan(a) or self.is_nan(b):
-            return IEEENumber([0] + [1]*8 + [1] + [0]*22)
+            return IEEENumber([0] + [1]*EXP_BITS + [1] + [0]*(MANTISSA_LENGTH-1))
         if self.is_zero(a) or self.is_zero(b):
-            return IEEENumber([0] * 32)
+            return IEEENumber([0] * BITS_32)
 
         sign, exponent, mant_a, mant_b = self._prepare_multiplication(a, b)
 
@@ -303,21 +302,21 @@ class IEEECalculator:
         return self._build_result(sign, exponent, mantissa_24)
 
     def get_mantissa_with_hidden(self, num: IEEENumber):
-        mant = [0] * 32
-        mant[8] = 1
+        mant = [0] * BITS_32
+        mant[EXP_BITS] = 1
 
         src = num.get_mantissa_bits()
-        for i in range(23):
-            mant[9 + i] = src[i]
+        for i in range(MANTISSA_LENGTH ):
+            mant[EXP_BITS+1 + i] = src[i]
 
         return mant
 
     def mantissa_bits_to_int(self, mantissa_bits):
-        value = 1 << 23
+        value = 1 << MANTISSA_LENGTH
 
-        for i in range(23):
+        for i in range(MANTISSA_LENGTH):
             if mantissa_bits[i] == 1:
-                value |= 1 << (22 - i)
+                value |= 1 << ((MANTISSA_LENGTH-1) - i)
 
         return value
 
@@ -325,15 +324,15 @@ class IEEECalculator:
         if mantis_B == 0:
             raise ZeroDivisionError()
 
-        quotient = (mantis_A << 23) // mantis_B
+        quotient = (mantis_A << MANTISSA_LENGTH) // mantis_B
 
         shift = 0
 
-        if quotient >= (1 << 24):
+        if quotient >= (1 << (MANTISSA_LENGTH+1)):
             quotient >>= 1
             shift = 1
-        elif quotient < (1 << 23):
-            while quotient < (1 << 23):
+        elif quotient < (1 << MANTISSA_LENGTH):
+            while quotient < (1 << MANTISSA_LENGTH):
                 quotient <<= 1
                 shift -= 1
 
@@ -341,23 +340,23 @@ class IEEECalculator:
 
     def divide(self, a: IEEENumber, b: IEEENumber) -> IEEENumber:
         if self.is_nan(a) or self.is_nan(b):
-            return IEEENumber([0] + [1]*8 + [1] + [0]*22)
+            return IEEENumber([0] + [1]*EXP_BITS + [1] + [0]*(MANTISSA_LENGTH-1))
         if self.is_infinity(a) and not self.is_infinity(b):
             return a.copy()  
         if self.is_zero(a) and self.is_zero(b):
-            return IEEENumber([0] + [1] * 8 + [1] + [0] * 22)
+            return IEEENumber([0] + [1] * EXP_BITS + [1] + [0] * (MANTISSA_LENGTH-1))
         if self.is_zero(b):
             sign = a.get_sign() ^ b.get_sign()
-            return IEEENumber([sign] + [1] * 8 + [0] * 23)
+            return IEEENumber([sign] + [1] * EXP_BITS + [0] * (MANTISSA_LENGTH))
         if self.is_zero(a):
-            return IEEENumber([0] * 32)
+            return IEEENumber([0] * BITS_32)
 
         sign = a.get_sign() ^ b.get_sign()
 
         exp = (
             self.bits.bits_to_int(a.get_exponent_bits())
             - self.bits.bits_to_int(b.get_exponent_bits())
-            + self.BIAS
+            + BIAS
         )
 
         mA = self.mantissa_bits_to_int(a.get_mantissa_bits())
@@ -367,12 +366,12 @@ class IEEECalculator:
         exp += shift
 
         if exp <= 0:
-            return IEEENumber([0] * 32)
-        if exp >= 255:
-            return IEEENumber([sign] + [1] * 8 + [0] * 23)
+            return IEEENumber([0] * BITS_32)
+        if exp >= EXP_MAX:
+            return IEEENumber([sign] + [1] * EXP_BITS + [0] * MANTISSA_LENGTH)
 
         mantissa_bits = []
         for i in range(23):
-            mantissa_bits.append((mant_int >> (22 - i)) & 1)
+            mantissa_bits.append((mant_int >> ((MANTISSA_LENGTH-1)- i)) & 1)
 
-        return IEEENumber([sign] + self.bits.int_to_bits(exp, 8) + mantissa_bits)
+        return IEEENumber([sign] + self.bits.int_to_bits(exp, EXP_BITS) + mantissa_bits)
