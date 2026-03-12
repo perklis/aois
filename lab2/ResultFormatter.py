@@ -44,9 +44,10 @@ class ResultFormatter:
         vec = "".join(str(v) for v in info["vector"])
         variables = ", ".join(info["variables"])
         return "\n".join([
-            f"Булева производная по [{variables}]",
-            f"- Вектор: {vec}",
-            f"- СДНФ: {info['sdnf']}",
+            f"Производная по [{variables}]",
+            f"  Вектор: {vec}",
+            f"  СДНФ: {info['sdnf']}",
+            f"  Упрощенная формула: {info['simplified_sdnf']}",
         ])
 
     def minimization_text(self, info):

@@ -1,4 +1,4 @@
-from lab2.Menu import Menu
+from Menu import Menu
 
 
 def main():
