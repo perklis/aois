@@ -1,4 +1,4 @@
-from services.ZhegalkinPolinom import ZhegalkinPolinom
+from src.ZhegalkinPolinom import ZhegalkinPolinom
 
 
 class PostClassService:

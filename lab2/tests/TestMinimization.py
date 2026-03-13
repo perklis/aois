@@ -1,8 +1,8 @@
 import unittest
 
 from Minimization import Minimization
-from services.ExpressionProperties import ExpressionProperties
-from services.TruthTableBuilder import TruthTableBuilder
+from src.ExpressionProperties import ExpressionProperties
+from src.TruthTableBuilder import TruthTableBuilder
 
 
 class TestMinimization(unittest.TestCase):

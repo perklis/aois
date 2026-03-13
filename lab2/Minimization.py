@@ -9,6 +9,7 @@ class Minimization:
         stages, prime = self._glue(minterms, len(variable_names))
         selected = self._remove_unnecessary(prime, minterms)
         return {
+            "variable_names": variable_names,
             "stages": stages,
             "prime": prime,
             "selected": selected,
@@ -25,12 +26,14 @@ class Minimization:
             result["selected"] = selected
             result["expression"] = self._to_expression(selected, variable_names)
         result["chart"] = chart
+        result["variable_names"] = variable_names
         return result
 
     def minimize_karno(self, rows, variable_names):
         result = self.minimize_tabular(rows, variable_names)
         kmap = self._build_karno_map(rows, variable_names)
         return {
+            "variable_names": variable_names,
             "map": kmap,
             "groups": [item.pattern for item in result["selected"]],
             "expression": result["expression"],
@@ -45,8 +48,8 @@ class Minimization:
         stages = []
         prime = []
         while True:
-            stages.append(current)
-            combined, unused = self._combine_once(current)
+            combined, unused, glued = self._combine_once(current)
+            stages.append({"implicants": current, "glued": glued})
             prime.extend(unused)
             if not combined:
                 break
@@ -56,6 +59,7 @@ class Minimization:
     def _combine_once(self, implicants):
         used = set()
         combined = []
+        glued = []
         for left in range(len(implicants)):
             for right in range(left + 1, len(implicants)):
                 item = self._combine_pair(implicants[left], implicants[right])
@@ -64,8 +68,9 @@ class Minimization:
                 used.add(left)
                 used.add(right)
                 combined.append(item)
+                glued.append((implicants[left], implicants[right], item))
         unused = [implicants[i] for i in range(len(implicants)) if i not in used]
-        return self._deduplicate(combined), tuple(unused)
+        return self._deduplicate(combined), tuple(unused), glued
 
     def _combine_pair(self, left, right):
         diff = 0

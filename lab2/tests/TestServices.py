@@ -1,12 +1,12 @@
 import unittest
 
-from services.SdnfSknfBuilder import SdnfSknfBuilder
-from services.Differentiation import Differentiation
-from services.ExpressionProperties import ExpressionProperties
-from services.FictiveVariableService import IsFictiveVariable
-from services.PostClassService import PostClassService
-from services.TruthTableBuilder import TruthTableBuilder
-from services.ZhegalkinPolinom import ZhegalkinPolinom
+from src.SdnfSknfBuilder import SdnfSknfBuilder
+from src.Differentiation import Differentiation
+from src.ExpressionProperties import ExpressionProperties
+from src.FictiveVariableService import IsFictiveVariable
+from src.PostClassService import PostClassService
+from src.TruthTableBuilder import TruthTableBuilder
+from src.ZhegalkinPolinom import ZhegalkinPolinom
 
 
 class TestServices(unittest.TestCase):

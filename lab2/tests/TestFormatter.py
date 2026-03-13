@@ -1,6 +1,6 @@
 import unittest
 
-from services.FunctionAnalyzator import FunctionAnalyzator
+from src.FunctionAnalyzator import FunctionAnalyzator
 from ResultFormatter import ResultFormatter
 
 
@@ -28,7 +28,6 @@ class TestFormatter(unittest.TestCase):
         self.facade.set_expression("a|b")
         definition = self.facade.definition()
         table = self.facade.truth_table()
-        shape_text = self.formatter.shape_text(self.facade.shape())
         table_text = self.formatter.truth_table_text(table, definition.variables)
         canonical_text = self.formatter.canonical_text(self.facade.canonical())
         post_text = self.formatter.post_text(self.facade.post())
@@ -36,11 +35,10 @@ class TestFormatter(unittest.TestCase):
         min_text = self.formatter.minimization_text(self.facade.minimize_calculation())
         tab_text = self.formatter.tabular_chart_text(self.facade.minimize_tabular())
         kmap_text = self.formatter.karnaugh_text(self.facade.minimize_karnaugh())
-        self.assertIn("Анализ", shape_text)
         self.assertIn("idx", table_text)
-        self.assertIn("СДНФ", canonical_text)
+        self.assertIn("Числовая форма СДНФ", canonical_text)
         self.assertIn("T0", post_text)
         self.assertIn("Булева производная", derivative_text)
         self.assertIn("Минимизированная ДНФ", min_text)
         self.assertIn("implicant", tab_text)
-        self.assertIn("row/col", kmap_text)
+        self.assertIn("Группы", kmap_text)

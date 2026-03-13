@@ -1,4 +1,4 @@
-from services.FunctionAnalyzator import FunctionAnalyzator
+from src.FunctionAnalyzator import FunctionAnalyzator
 from ResultFormatter import ResultFormatter
 
 class Menu:
@@ -29,7 +29,6 @@ class Menu:
         print("9. Минимизация расчетным методом")
         print("10. Минимизация расчетно-табличным методом")
         print("11. Минимизация картой Карно")
-        print("12. Выполнить полный анализ")
         print("0. Выход")
 
     def _handle(self, option):
@@ -55,7 +54,6 @@ class Menu:
             "9": self._show_calc_minimization,
             "10": self._show_tabular_minimization,
             "11": self._show_karnaugh,
-            "12": self._show_all,
         }
 
     def _input_expression(self):
@@ -103,17 +101,3 @@ class Menu:
 
     def _show_karnaugh(self):
         print(self.formatter.karnaugh_text(self.facade.minimize_karnaugh()))
-
-    def _show_all(self):
-        self._show_shape()
-        self._show_truth_table()
-        self._show_canonical()
-        self._show_post()
-        self._show_zhegalkin()
-        self._show_fictive()
-        definition = self.facade.definition()
-        default_vars = definition.variables[: min(2, len(definition.variables))]
-        print(self.formatter.derivative_text(self.facade.derivative(default_vars)))
-        self._show_calc_minimization()
-        self._show_tabular_minimization()
-        self._show_karnaugh()

@@ -1,6 +1,6 @@
 class ResultFormatter:
     def shape_text(self, shape):
-        lines = ["Анализ исходной функции:"]
+        lines = ["\n"]
         lines.append(f"- Выражение: {shape['source']}")
         lines.append(f"- Переменные: {', '.join(shape['variables'])}")
         lines.append(f"- Количество переменных: {shape['count']}")
@@ -9,25 +9,21 @@ class ResultFormatter:
         return "\n".join(lines)
 
     def truth_table_text(self, rows, variable_names):
-        head = " | ".join(["idx", *variable_names, "f"])
-        lines = [head, "-" * len(head)]
+        headers = ["idx", *variable_names, "f"]
+        table_rows = []
         for row in rows:
             values = [str(row.index)]
             values.extend(str(row.assignment[name]) for name in variable_names)
             values.append(str(row.value))
-            lines.append(" | ".join(values))
-        return "\n".join(lines)
+            table_rows.append(values)
+        return self._format_table(headers, table_rows)
 
     def canonical_text(self, info):
         lines = ["Канонические формы:"]
-        lines.append(f"- СДНФ: {info['sdnf']}")
-        lines.append(f"- СКНФ: {info['sknf']}")
         lines.append(f"- Числовая форма СДНФ: {info['numeric_sdnf']}")
         lines.append(f"- Числовая форма СКНФ: {info['numeric_sknf']}")
         lines.append(f"- Индексная форма (вектор): {info['index_binary']}")
         lines.append(f"- Индексная форма (число): {info['index_decimal']}")
-        lines.append(f"- Проверка конституент СДНФ: {info['sdnf_constituents_ok']}")
-        lines.append(f"- Проверка конституент СКНФ: {info['sknf_constituents_ok']}")
         return "\n".join(lines)
 
     def post_text(self, info):
@@ -44,19 +40,30 @@ class ResultFormatter:
         vec = "".join(str(v) for v in info["vector"])
         variables = ", ".join(info["variables"])
         return "\n".join([
-            f"Производная по [{variables}]",
-            f"  Вектор: {vec}",
-            f"  СДНФ: {info['sdnf']}",
-            f"  Упрощенная формула: {info['simplified_sdnf']}",
+            f"Булева производная по [{variables}]",
+            f"- Вектор: {vec}",
+            f"- СДНФ: {info['sdnf']}",
+            f"- СДНФ (упрощенная): {info['simplified_sdnf']}",
         ])
 
     def minimization_text(self, info):
-        lines = ["Этапы склеивания:"]
+        lines = []
+        variable_names = info["variable_names"]
         for index, stage in enumerate(info["stages"], start=1):
-            text = ", ".join(f"{item.pattern}:{item.minterms}" for item in stage)
-            lines.append(f"- Этап {index}: [{text}]")
-        lines.append("Простые импликанты: " + self._implicants(info["prime"]))
-        lines.append("Выбранные импликанты: " + self._implicants(info["selected"]))
+            forms = [
+                self._pattern_to_form(item.pattern, variable_names)
+                for item in stage["implicants"]
+            ]
+            lines.append(f"Этап {index} склеивания: " + ", ".join(forms))
+            if stage["glued"]:
+                lines.append("Склеенные импликанты:")
+                for left, right, result in stage["glued"]:
+                    left_form = self._pattern_to_form(left.pattern, variable_names)
+                    right_form = self._pattern_to_form(right.pattern, variable_names)
+                    result_form = self._pattern_to_form(result.pattern, variable_names)
+                    lines.append(f"{left_form} + {right_form} -> {result_form}")
+        lines.append("Простые импликанты: " + self._patterns(info["prime"], variable_names))
+        lines.append("Выбранные импликанты: " + self._patterns(info["selected"], variable_names))
         lines.append("Минимизированная ДНФ: " + info["expression"])
         return "\n".join(lines)
 
@@ -64,24 +71,76 @@ class ResultFormatter:
         chart = info["chart"]
         if not chart["minterms"]:
             return "Таблица покрытия: нет минтермов"
-        head = "implicant | " + " | ".join(str(v) for v in chart["minterms"])
-        lines = [head, "-" * len(head)]
+        variable_names = info["variable_names"]
+        minterm_forms = [
+            self._minterm_form(value, variable_names) for value in chart["minterms"]
+        ]
+        headers = ["implicant", *minterm_forms]
+        table_rows = []
         for implicant, row in zip(chart["implicants"], chart["matrix"]):
             marks = ["X" if value == 1 else "." for value in row]
-            lines.append(implicant.pattern + " | " + " | ".join(marks))
-        return "\n".join(lines)
+            implicant_form = self._pattern_to_form(implicant.pattern, variable_names)
+            table_rows.append([implicant_form, *marks])
+        return self._format_table(headers, table_rows)
 
     def karnaugh_text(self, info):
         kmap = info["map"]
-        head = "row/col | " + " | ".join(kmap["cols"])
-        lines = [head, "-" * len(head)]
+        variable_names = info["variable_names"]
+        headers = ["implicant", *kmap["cols"]]
+        table_rows = []
         for row_name, row in zip(kmap["rows"], kmap["values"]):
-            lines.append(row_name + " | " + " | ".join(str(v) for v in row))
-        lines.append("Группы (по выбранным импликантам): " + ", ".join(info["groups"]))
+            table_rows.append([row_name, *[str(v) for v in row]])
+        lines = [self._format_table(headers, table_rows)]
+        group_forms = [self._pattern_to_form(item, variable_names) for item in info["groups"]]
+        lines.append("Группы: " + ", ".join(group_forms))
         lines.append("Минимизированная ДНФ: " + info["expression"])
         return "\n".join(lines)
 
-    def _implicants(self, implicants):
+    def _patterns(self, implicants, variable_names):
         if not implicants:
             return "[]"
-        return "[" + ", ".join(f"{i.pattern}:{i.minterms}" for i in implicants) + "]"
+        forms = [self._pattern_to_form(item.pattern, variable_names) for item in implicants]
+        return "[" + ", ".join(forms) + "]"
+
+    def _pattern_to_form(self, pattern, variable_names):
+        parts = []
+        for name, symbol in zip(variable_names, pattern):
+            if symbol == "-":
+                parts.append("X")
+            elif symbol == "1":
+                parts.append(name)
+            else:
+                parts.append(f"!{name}")
+        if not parts:
+            return "1"
+        if len(parts) == 1:
+            return parts[0]
+        return "(" + " & ".join(parts) + ")"
+
+    def _minterm_form(self, index, variable_names):
+        parts = []
+        count = len(variable_names)
+        for offset, name in enumerate(variable_names):
+            bit = (index >> (count - 1 - offset)) & 1
+            parts.append(name if bit == 1 else f"!{name}")
+        return "(" + " & ".join(parts) + ")"
+
+    def _format_table(self, headers, rows):
+        columns = [headers] + rows
+        widths = []
+        for col_index in range(len(headers)):
+            max_width = max(len(str(row[col_index])) for row in columns)
+            widths.append(max_width)
+        lines = []
+        header_cells = [
+            str(value).ljust(widths[index]) for index, value in enumerate(headers)
+        ]
+        lines.append(" | ".join(header_cells))
+        separator = ["-" * width for width in widths]
+        lines.append("-+-".join(separator))
+        for row in rows:
+            row_cells = [
+                str(value).ljust(widths[index]) for index, value in enumerate(row)
+            ]
+            lines.append(" | ".join(row_cells))
+        return "\n".join(lines)
