@@ -1,6 +1,7 @@
 from itertools import combinations
 from constants import SYMBOL_AND, SYMBOL_OR
 from models.Implicant import Implicant
+from models.TruthTableRow import TruthTableRow
 
 
 class Minimization:
@@ -10,10 +11,34 @@ class Minimization:
         selected = self._remove_unnecessary(prime, minterms)
         return {
             "variable_names": variable_names,
+            "result_label": "Минимизированная СДНФ",
             "stages": stages,
             "prime": prime,
             "selected": selected,
             "expression": self._to_expression(selected, variable_names),
+        }
+
+    def minimize_with_sknf(self, method="calculation"):
+        definition = self.definition()
+        rows = self.truth_table()
+        variable_names = definition.variables
+    
+        # Минимизация СДНФ
+        if method == "calculation":
+            sdnf_info = self.minimize_calculation()
+        elif method == "tabular":
+            sdnf_info = self.minimize_tabular()
+        elif method == "karno":
+            sdnf_info = self.minimize_karno()
+        else:
+            raise ValueError(f"Неизвестный метод: {method}")
+    
+        # Минимизация СКНФ
+        sknf_info = self.minimize_sknf(rows, variable_names)
+    
+        return {
+            "sdnf": sdnf_info,
+            "sknf": sknf_info
         }
 
     def minimize_tabular(self, rows, variable_names):
@@ -37,7 +62,55 @@ class Minimization:
             "map": kmap,
             "groups": [item.pattern for item in result["selected"]],
             "expression": result["expression"],
+            "group_forms": [
+                self._pattern_to_form(item.pattern, variable_names)
+                for item in result["selected"]
+            ],
+            "result_label": "Минимизированная СДНФ",
         }
+
+    def minimize_both(self, rows, variable_names, method="calculation"):
+        sdnf = self._minimize_by_method(rows, variable_names, method)
+        sknf = self.minimize_sknf(rows, variable_names, method)
+        return {"sdnf": sdnf, "sknf": sknf}
+
+    def minimize_sknf(self, rows, variable_names, method):
+        inverted_rows = [
+            TruthTableRow(row.index, row.assignment, 1 - row.value) for row in rows
+        ]
+        inverted = self._minimize_by_method(inverted_rows, variable_names, method)
+        selected = inverted.get("selected")
+        if selected is None:
+            selected = tuple(Implicant(pattern, []) for pattern in inverted.get("groups", []))
+        cnf_expression = self._to_cnf(selected, variable_names)
+        result = dict(inverted)
+        result["expression"] = cnf_expression
+        result["result_label"] = "Минимизированная СКНФ"
+        result["form"] = "sknf"
+        if "chart" in result:
+            maxterms = tuple(row.index for row in rows if row.value == 0)
+            result["column_forms"] = [
+                self._maxterm_form(index, variable_names) for index in maxterms
+            ]
+            result["row_forms"] = [
+                self._pattern_to_maxterm_form(item.pattern, variable_names)
+                for item in result["chart"]["implicants"]
+            ]
+        if "groups" in result:
+            result["group_forms"] = [
+                self._pattern_to_maxterm_form(item, variable_names)
+                for item in result["groups"]
+            ]
+        return result
+
+    def _minimize_by_method(self, rows, variable_names, method):
+        if method == "calculation":
+            return self.minimize_calculation(rows, variable_names)
+        if method == "tabular":
+            return self.minimize_tabular(rows, variable_names)
+        if method == "karno":
+            return self.minimize_karno(rows, variable_names)
+        raise ValueError(f"Неизвестный метод: {method}")
 
     def _glue(self, minterms, width):
         if not minterms:
@@ -125,6 +198,27 @@ class Minimization:
                 terms.append("(" + f" {SYMBOL_AND} ".join(literals) + ")")
         return f" {SYMBOL_OR} ".join(terms)
 
+    def _to_cnf(self, implicants, variable_names):
+        if not implicants:
+            return "1"
+        terms = []
+        for implicant in implicants:
+            literals = []
+            for name, symbol in zip(variable_names, implicant.pattern):
+                if symbol == "-":
+                    continue
+                if symbol == "1":
+                    literals.append(f"!{name}")
+                else:
+                    literals.append(name)
+            if not literals:
+                return "0"
+            if len(literals) == 1:
+                terms.append(literals[0])
+            else:
+                terms.append("(" + f" {SYMBOL_OR} ".join(literals) + ")")
+        return f" {SYMBOL_AND} ".join(terms)
+
     def _deduplicate(self, implicants):
         merged = {}
         for item in implicants:
@@ -190,3 +284,41 @@ class Minimization:
             gray = value ^ (value >> 1)
             labels.append(format(gray, f"0{bits}b"))
         return tuple(labels)
+
+    def _pattern_to_form(self, pattern, variable_names):
+        parts = []
+        for name, symbol in zip(variable_names, pattern):
+            if symbol == "-":
+                parts.append("X")
+            elif symbol == "1":
+                parts.append(name)
+            else:
+                parts.append(f"!{name}")
+        if not parts:
+            return "1"
+        if len(parts) == 1:
+            return parts[0]
+        return "(" + " & ".join(parts) + ")"
+
+    def _pattern_to_maxterm_form(self, pattern, variable_names):
+        parts = []
+        for name, symbol in zip(variable_names, pattern):
+            if symbol == "-":
+                parts.append("X")
+            elif symbol == "1":
+                parts.append(f"!{name}")
+            else:
+                parts.append(name)
+        if not parts:
+            return "0"
+        if len(parts) == 1:
+            return parts[0]
+        return "(" + " | ".join(parts) + ")"
+
+    def _maxterm_form(self, index, variable_names):
+        parts = []
+        count = len(variable_names)
+        for offset, name in enumerate(variable_names):
+            bit = (index >> (count - 1 - offset)) & 1
+            parts.append(name if bit == 0 else f"!{name}")
+        return "(" + " | ".join(parts) + ")"

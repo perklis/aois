@@ -39,6 +39,6 @@ class TestFormatter(unittest.TestCase):
         self.assertIn("Числовая форма СДНФ", canonical_text)
         self.assertIn("T0", post_text)
         self.assertIn("Булева производная", derivative_text)
-        self.assertIn("Минимизированная ДНФ", min_text)
+        self.assertIn("Минимизированная СДНФ", min_text)
         self.assertIn("implicant", tab_text)
         self.assertIn("Группы", kmap_text)

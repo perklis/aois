@@ -59,14 +59,32 @@ class FunctionAnalyzator:
             self.truth_table(), definition.variables
         )
 
+    def minimize_calculation_both(self):
+        definition = self.definition()
+        return self.minimization_service.minimize_both(
+            self.truth_table(), definition.variables, method="calculation"
+        )
+
     def minimize_tabular(self):
         definition = self.definition()
         return self.minimization_service.minimize_tabular(
             self.truth_table(), definition.variables
         )
 
+    def minimize_tabular_both(self):
+        definition = self.definition()
+        return self.minimization_service.minimize_both(
+            self.truth_table(), definition.variables, method="tabular"
+        )
+
     def minimize_karnaugh(self):
         definition = self.definition()
         return self.minimization_service.minimize_karno(
             self.truth_table(), definition.variables
+        )
+
+    def minimize_karnaugh_both(self):
+        definition = self.definition()
+        return self.minimization_service.minimize_both(
+            self.truth_table(), definition.variables, method="karno"
         )

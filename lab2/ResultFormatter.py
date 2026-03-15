@@ -49,22 +49,21 @@ class ResultFormatter:
     def minimization_text(self, info):
         lines = []
         variable_names = info["variable_names"]
+        result_label = info.get("result_label", "Минимизированная ДНФ")
+        form = info.get("form", "sdnf")
         for index, stage in enumerate(info["stages"], start=1):
-            forms = [
-                self._pattern_to_form(item.pattern, variable_names)
-                for item in stage["implicants"]
-            ]
+            forms = self._stage_forms(stage["implicants"], variable_names, form)
             lines.append(f"Этап {index} склеивания: " + ", ".join(forms))
             if stage["glued"]:
                 lines.append("Склеенные импликанты:")
                 for left, right, result in stage["glued"]:
-                    left_form = self._pattern_to_form(left.pattern, variable_names)
-                    right_form = self._pattern_to_form(right.pattern, variable_names)
-                    result_form = self._pattern_to_form(result.pattern, variable_names)
+                    left_form = self._stage_form(left.pattern, variable_names, form)
+                    right_form = self._stage_form(right.pattern, variable_names, form)
+                    result_form = self._stage_form(result.pattern, variable_names, form)
                     lines.append(f"{left_form} + {right_form} -> {result_form}")
         lines.append("Простые импликанты: " + self._patterns(info["prime"], variable_names))
         lines.append("Выбранные импликанты: " + self._patterns(info["selected"], variable_names))
-        lines.append("Минимизированная ДНФ: " + info["expression"])
+        lines.append(f"{result_label}: " + info["expression"])
         return "\n".join(lines)
 
     def tabular_chart_text(self, info):
@@ -72,28 +71,39 @@ class ResultFormatter:
         if not chart["minterms"]:
             return "Таблица покрытия: нет минтермов"
         variable_names = info["variable_names"]
-        minterm_forms = [
-            self._minterm_form(value, variable_names) for value in chart["minterms"]
-        ]
-        headers = ["implicant", *minterm_forms]
+        column_forms = info.get("column_forms")
+        if column_forms is None:
+            column_forms = [
+                self._minterm_form(value, variable_names) for value in chart["minterms"]
+            ]
+        headers = ["implicant", *column_forms]
         table_rows = []
-        for implicant, row in zip(chart["implicants"], chart["matrix"]):
+        row_forms = info.get("row_forms")
+        if row_forms is None:
+            row_forms = [
+                self._pattern_to_form(item.pattern, variable_names)
+                for item in chart["implicants"]
+            ]
+        for row_index, row in enumerate(chart["matrix"]):
             marks = ["X" if value == 1 else "." for value in row]
-            implicant_form = self._pattern_to_form(implicant.pattern, variable_names)
-            table_rows.append([implicant_form, *marks])
+            table_rows.append([row_forms[row_index], *marks])
         return self._format_table(headers, table_rows)
 
     def karnaugh_text(self, info):
         kmap = info["map"]
         variable_names = info["variable_names"]
-        headers = ["implicant", *kmap["cols"]]
+        row_forms, col_forms = self._karnaugh_headers(kmap, variable_names)
+        headers = ["rows/cols", *col_forms]
         table_rows = []
-        for row_name, row in zip(kmap["rows"], kmap["values"]):
+        for row_name, row in zip(row_forms, kmap["values"]):
             table_rows.append([row_name, *[str(v) for v in row]])
         lines = [self._format_table(headers, table_rows)]
-        group_forms = [self._pattern_to_form(item, variable_names) for item in info["groups"]]
+        group_forms = info.get("group_forms")
+        if group_forms is None:
+            group_forms = [self._pattern_to_form(item, variable_names) for item in info["groups"]]
         lines.append("Группы: " + ", ".join(group_forms))
-        lines.append("Минимизированная ДНФ: " + info["expression"])
+        result_label = info.get("result_label", "Минимизированная ДНФ")
+        lines.append(f"{result_label}: " + info["expression"])
         return "\n".join(lines)
 
     def _patterns(self, implicants, variable_names):
@@ -117,12 +127,64 @@ class ResultFormatter:
             return parts[0]
         return "(" + " & ".join(parts) + ")"
 
+    def _stage_forms(self, implicants, variable_names, form):
+        return [
+            self._stage_form(item.pattern, variable_names, form)
+            for item in implicants
+        ]
+
+    def _stage_form(self, pattern, variable_names, form):
+        if form == "sknf":
+            return self._pattern_to_maxterm_form(pattern, variable_names)
+        return self._pattern_to_form(pattern, variable_names)
+
+    def _pattern_to_maxterm_form(self, pattern, variable_names):
+        parts = []
+        for name, symbol in zip(variable_names, pattern):
+            if symbol == "-":
+                parts.append("X")
+            elif symbol == "1":
+                parts.append(f"!{name}")
+            else:
+                parts.append(name)
+        if not parts:
+            return "0"
+        if len(parts) == 1:
+            return parts[0]
+        return "(" + " v ".join(parts) + ")"
+
     def _minterm_form(self, index, variable_names):
         parts = []
         count = len(variable_names)
         for offset, name in enumerate(variable_names):
             bit = (index >> (count - 1 - offset)) & 1
             parts.append(name if bit == 1 else f"!{name}")
+        return "(" + " & ".join(parts) + ")"
+
+    def _maxterm_form(self, index, variable_names):
+        parts = []
+        count = len(variable_names)
+        for offset, name in enumerate(variable_names):
+            bit = (index >> (count - 1 - offset)) & 1
+            parts.append(name if bit == 0 else f"!{name}")
+        return "(" + " v ".join(parts) + ")"
+
+    def _karnaugh_headers(self, kmap, variable_names):
+        row_bits = len(kmap["rows"][0]) if kmap["rows"] else 0
+        row_vars = variable_names[:row_bits]
+        col_vars = variable_names[row_bits:]
+        row_forms = [self._bits_to_form(bits, row_vars) for bits in kmap["rows"]]
+        col_forms = [self._bits_to_form(bits, col_vars) for bits in kmap["cols"]]
+        return row_forms, col_forms
+
+    def _bits_to_form(self, bits, variable_names):
+        if not variable_names:
+            return "1"
+        parts = []
+        for name, bit in zip(variable_names, bits):
+            parts.append(name if bit == "1" else f"!{name}")
+        if len(parts) == 1:
+            return parts[0]
         return "(" + " & ".join(parts) + ")"
 
     def _format_table(self, headers, rows):

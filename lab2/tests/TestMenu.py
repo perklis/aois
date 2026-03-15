@@ -30,3 +30,24 @@ class TestMenu(unittest.TestCase):
             with patch("builtins.print") as print_mock:
                 menu._show_derivative()
         self.assertTrue(print_mock.called)
+
+    def test_show_calc_minimization_both(self):
+        menu = Menu()
+        menu.facade.set_expression("a|b")
+        with patch("builtins.print") as print_mock:
+            menu._show_calc_minimization()
+        self.assertTrue(print_mock.called)
+
+    def test_show_tabular_minimization_both(self):
+        menu = Menu()
+        menu.facade.set_expression("a|b")
+        with patch("builtins.print") as print_mock:
+            menu._show_tabular_minimization()
+        self.assertTrue(print_mock.called)
+
+    def test_show_karnaugh_both(self):
+        menu = Menu()
+        menu.facade.set_expression("a|b")
+        with patch("builtins.print") as print_mock:
+            menu._show_karnaugh()
+        self.assertTrue(print_mock.called)

@@ -91,13 +91,24 @@ class Menu:
         print(self.formatter.derivative_text(self.facade.derivative(variables)))
 
     def _show_calc_minimization(self):
-        info = self.facade.minimize_calculation()
-        print(self.formatter.minimization_text(info))
+        result = self.facade.minimize_calculation_both()
+        print("СДНФ:")
+        print(self.formatter.minimization_text(result["sdnf"]))
+        print("СКНФ:")
+        print(self.formatter.minimization_text(result["sknf"]))
 
     def _show_tabular_minimization(self):
-        info = self.facade.minimize_tabular()
-        print(self.formatter.minimization_text(info))
-        print(self.formatter.tabular_chart_text(info))
+        result = self.facade.minimize_tabular_both()
+        print("СДНФ:")
+        print(self.formatter.minimization_text(result["sdnf"]))
+        print(self.formatter.tabular_chart_text(result["sdnf"]))
+        print("СКНФ:")
+        print(self.formatter.minimization_text(result["sknf"]))
+        print(self.formatter.tabular_chart_text(result["sknf"]))
 
     def _show_karnaugh(self):
-        print(self.formatter.karnaugh_text(self.facade.minimize_karnaugh()))
+        result = self.facade.minimize_karnaugh_both()
+        print("СДНФ:")
+        print(self.formatter.karnaugh_text(result["sdnf"]))
+        print("СКНФ:")
+        print(self.formatter.karnaugh_text(result["sknf"]))
