@@ -86,13 +86,41 @@ class TestCircuits(unittest.TestCase):
                 got = eval_expr(eq_map[name], mapping)
                 self.assertEqual(got, expected)
 
+    def test_adder_equations(self):
+        eqs = circuits.get_bcd_adder_equations()
+        self.assertEqual(len(eqs), 5)
+        eq_map = {eq.name: eq.minimized for eq in eqs}
+
+        for a in range(10):
+            for b in range(10):
+                s = a + b
+                mapping = {
+                    "A3": bool((a >> 3) & 1),
+                    "A2": bool((a >> 2) & 1),
+                    "A1": bool((a >> 1) & 1),
+                    "A0": bool(a & 1),
+                    "B3": bool((b >> 3) & 1),
+                    "B2": bool((b >> 2) & 1),
+                    "B1": bool((b >> 1) & 1),
+                    "B0": bool(b & 1),
+                }
+                expected = {
+                    "S4": bool(s & 16),
+                    "S3": bool(s & 8),
+                    "S2": bool(s & 4),
+                    "S1": bool(s & 2),
+                    "S0": bool(s & 1),
+                }
+                for name, exp in expected.items():
+                    got = eval_expr(eq_map[name], mapping)
+                    self.assertEqual(got, exp)
+
     def _check_encoder(self, offset):
         eqs = circuits.get_encoder_8421_equations(offset)
         self.assertEqual(len(eqs), 8)
         eq_map = {eq.name: eq.minimized for eq in eqs}
 
-        max_sum = 18 + offset
-        for i in range(max_sum + 1):
+        for i in range(19):
             mapping = {
                 "S4": bool((i >> 4) & 1),
                 "S3": bool((i >> 3) & 1),
@@ -100,8 +128,9 @@ class TestCircuits(unittest.TestCase):
                 "S1": bool((i >> 1) & 1),
                 "S0": bool(i & 1),
             }
-            tens = i // 10
-            units = i % 10
+            v = i + offset
+            tens = v // 10
+            units = v % 10
             t_b = circuits.encode_8421(tens)
             u_b = circuits.encode_8421(units)
             expected = {
@@ -130,18 +159,18 @@ class TestCircuits(unittest.TestCase):
 
         for q in range(constants.CounterMaxState):
             mapping = {
-                "Q4": bool((q >> 3) & 1),
-                "Q3": bool((q >> 2) & 1),
-                "Q2": bool((q >> 1) & 1),
-                "Q1": bool(q & 1),
+                "Q3": bool((q >> 3) & 1),
+                "Q2": bool((q >> 2) & 1),
+                "Q1": bool((q >> 1) & 1),
+                "Q0": bool(q & 1),
             }
             next_q = (q - 1 + constants.CounterMaxState) % constants.CounterMaxState
             t_vals = q ^ next_q
             expected = {
-                "T4": bool((t_vals >> 3) & 1),
-                "T3": bool((t_vals >> 2) & 1),
-                "T2": bool((t_vals >> 1) & 1),
-                "T1": bool(t_vals & 1),
+                "T3": bool((t_vals >> 3) & 1),
+                "T2": bool((t_vals >> 2) & 1),
+                "T1": bool((t_vals >> 1) & 1),
+                "T0": bool(t_vals & 1),
             }
             for name, exp in expected.items():
                 got = eval_expr(eq_map[name], mapping)

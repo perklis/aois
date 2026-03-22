@@ -77,6 +77,48 @@ def get_decoder_8421_equations() -> List[Equation]:
     return result
 
 
+def get_bcd_adder_equations() -> List[Equation]:
+    vars_ = ["A3", "A2", "A1", "A0", "B3", "B2", "B1", "B0"]
+    minterms: dict[str, List[int]] = {
+        "S4": [],
+        "S3": [],
+        "S2": [],
+        "S1": [],
+        "S0": [],
+    }
+    dont_cares: List[int] = []
+
+    for a in range(16):
+        for b in range(16):
+            idx = (a << 4) | b
+            if a > 9 or b > 9:
+                dont_cares.append(idx)
+                continue
+            s = a + b
+            if (s & 16) != 0:
+                minterms["S4"].append(idx)
+            if (s & 8) != 0:
+                minterms["S3"].append(idx)
+            if (s & 4) != 0:
+                minterms["S2"].append(idx)
+            if (s & 2) != 0:
+                minterms["S1"].append(idx)
+            if (s & 1) != 0:
+                minterms["S0"].append(idx)
+
+    out_names = ["S4", "S3", "S2", "S1", "S0"]
+    result: List[Equation] = []
+    for out in out_names:
+        result.append(
+            Equation(
+                name=out,
+                sdnf="",
+                minimized=qm.minimize(8, minterms[out], dont_cares, vars_),
+            )
+        )
+    return result
+
+
 def get_encoder_8421_equations(offset_n: int) -> List[Equation]:
     vars_ = ["S4", "S3", "S2", "S1", "S0"]
     minterms: dict[str, List[int]] = {
@@ -91,13 +133,13 @@ def get_encoder_8421_equations(offset_n: int) -> List[Equation]:
     }
     dont_cares: List[int] = []
 
-    max_sum = 18 + offset_n
-    for i in range(max_sum + 1, 32):
+    for i in range(19, 32):
         dont_cares.append(i)
 
-    for i in range(max_sum + 1):
-        tens = i // 10
-        units = i % 10
+    for i in range(19):
+        v = i + offset_n
+        tens = v // 10
+        units = v % 10
         t_b = encode_8421(tens)
         u_b = encode_8421(units)
 
@@ -137,7 +179,7 @@ def get_encoder_8421_equations_offset_n() -> List[Equation]:
 
 
 def get_counter_equations() -> List[Equation]:
-    vars_ = ["Q4", "Q3", "Q2", "Q1"]
+    vars_ = ["Q3", "Q2", "Q1", "Q0"]
     minterms: List[List[int]] = [[], [], [], []]
 
     for q in range(CounterMaxState):
@@ -147,7 +189,7 @@ def get_counter_equations() -> List[Equation]:
             if ((t_vals >> (3 - i)) & 1) == 1:
                 minterms[i].append(q)
 
-    out_names = ["T4", "T3", "T2", "T1"]
+    out_names = ["T3", "T2", "T1", "T0"]
     result: List[Equation] = []
     for i in range(4):
         result.append(
