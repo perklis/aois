@@ -1,6 +1,6 @@
-SubtractorInputs = 3
-DecoderInputs = 4
-EncoderInputs = 5
-CounterInputs = 4
-CounterMaxState = 16
+SUBTRACTOR_INPUTS = 3
+DECODER_INPUTS = 4
+ENCODER_INPUTS = 5
+COUNTER_INPUTS = 4
+COUNTER_MAX_STATE = 16
 OFFSET_N = 9

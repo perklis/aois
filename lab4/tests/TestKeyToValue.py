@@ -1,6 +1,6 @@
 import unittest
 
-from KeyValueCalculator import KeyValueCalculator
+from lab4.KeyValueCalculator import KeyValueCalculator
 
 
 class TestKeyToValue(unittest.TestCase):

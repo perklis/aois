@@ -1,43 +1,47 @@
 from typing import Optional
 
-from HashTable import HashTable
-from TableEntry import TableEntry
+try:
+    from .HashTable import HashTable
+    from .TableEntry import TableEntry
+except ImportError:  # fallback for direct execution
+    from HashTable import HashTable
+    from TableEntry import TableEntry
 
 
 class TablePrinter:
-    def print_table(self, table: HashTable) -> None:
-        headers = ["Idx", "ID", "V", "h", "C", "U", "D", "Pi"]
-        widths = [4, 12, 6, 6, 3, 3, 3, 3, 3, 6, 12]
+    def print_table(self, hash_table: HashTable) -> None:
+        column_headers = ["Idx", "ID", "V", "h", "C", "U", "D", "Pi"]
+        column_widths = [4, 12, 6, 6, 3, 3, 3, 3, 3, 6, 12]
 
-        line = self._format_row(headers, widths)
-        print(line)
-        print("-" * len(line))
+        header_line = self._format_row(column_headers, column_widths)
+        print(header_line)
+        print("-" * len(header_line))
 
-        for idx, entry in table.rows():
-            row = self._row_from_entry(table, idx, entry)
-            print(self._format_row(row, widths))
+        for row_index, entry in hash_table.rows():
+            row_values = self._row_from_entry(hash_table, row_index, entry)
+            print(self._format_row(row_values, column_widths))
 
-        print("-" * len(line))
-        print(f"Load factor: {table.load_factor():.2f}")
+        print("-" * len(header_line))
+        print(f"Load factor: {hash_table.load_factor():.2f}")
 
     def _row_from_entry(
-        self, table: HashTable, idx: int, entry: Optional[TableEntry]
+        self, hash_table: HashTable, row_index: int, entry: Optional[TableEntry]
     ) -> list[str]:
         if entry is None:
-            return [str(idx), "", "", "", "0", "0", "0", ""]
-    
-        v_value = table.calculate_v(entry.key)
-        h_value = table.calculate_h(entry.key)
-    
+            return [str(row_index), "", "", "", "0", "0", "0", ""]
+
+        numeric_value = hash_table.calculate_value(entry.identifier)
+        hash_address = hash_table.calculate_address(entry.identifier)
+
         return [
-            str(idx),
-            entry.key,
-            str(v_value),
-            str(h_value),
-            str(entry.collision_flag),
-            str(entry.occupied_flag),
-            str(entry.deleted_flag),
-            str(entry.value),
+            str(row_index),
+            entry.identifier,
+            str(numeric_value),
+            str(hash_address),
+            str(entry.has_collision),
+            str(entry.is_occupied),
+            str(entry.is_deleted),
+            str(entry.payload),
         ]
 
     def _format_row(self, columns: list[str], widths: list[int]) -> str:

@@ -1,6 +1,6 @@
 import unittest
 
-from HashTable import HashTable
+from lab4.HashTable import HashTable
 
 
 class TestHashTable(unittest.TestCase):
@@ -57,5 +57,4 @@ class TestHashTable(unittest.TestCase):
         table.insert("AA", "v1")
         table.insert("BA", "v2")
         self.assertAlmostEqual(table.load_factor(), 0.5)
-
 

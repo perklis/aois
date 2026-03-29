@@ -128,24 +128,24 @@ class TestCircuits(unittest.TestCase):
                 "S1": bool((i >> 1) & 1),
                 "S0": bool(i & 1),
             }
-            v = i + offset
-            tens = v // 10
-            units = v % 10
-            t_b = circuits.encode_8421(tens)
-            u_b = circuits.encode_8421(units)
+            shifted_value = i + offset
+            tens = shifted_value // 10
+            units = shifted_value % 10
+            tens_bcd = circuits.encode_8421(tens)
+            units_bcd = circuits.encode_8421(units)
             expected = {
-                "T3": bool(t_b & 8),
-                "T2": bool(t_b & 4),
-                "T1": bool(t_b & 2),
-                "T0": bool(t_b & 1),
-                "U3": bool(u_b & 8),
-                "U2": bool(u_b & 4),
-                "U1": bool(u_b & 2),
-                "U0": bool(u_b & 1),
+                "T3": bool(tens_bcd & 8),
+                "T2": bool(tens_bcd & 4),
+                "T1": bool(tens_bcd & 2),
+                "T0": bool(tens_bcd & 1),
+                "U3": bool(units_bcd & 8),
+                "U2": bool(units_bcd & 4),
+                "U1": bool(units_bcd & 2),
+                "U0": bool(units_bcd & 1),
             }
-            for name, exp in expected.items():
-                got = eval_expr(eq_map[name], mapping)
-                self.assertEqual(got, exp)
+            for output_name, expected_value in expected.items():
+                got = eval_expr(eq_map[output_name], mapping)
+                self.assertEqual(got, expected_value)
 
     def test_encoder_equations_offset_n(self):
         self._check_encoder(constants.OFFSET_N)
@@ -157,21 +157,23 @@ class TestCircuits(unittest.TestCase):
         self.assertEqual(len(eqs), 4)
         eq_map = {eq.name: eq.minimized for eq in eqs}
 
-        for q in range(constants.CounterMaxState):
+        for state_value in range(constants.COUNTER_MAX_STATE):
             mapping = {
-                "Q3": bool((q >> 3) & 1),
-                "Q2": bool((q >> 2) & 1),
-                "Q1": bool((q >> 1) & 1),
-                "Q0": bool(q & 1),
+                "Q3": bool((state_value >> 3) & 1),
+                "Q2": bool((state_value >> 2) & 1),
+                "Q1": bool((state_value >> 1) & 1),
+                "Q0": bool(state_value & 1),
             }
-            next_q = (q - 1 + constants.CounterMaxState) % constants.CounterMaxState
-            t_vals = q ^ next_q
+            next_state = (
+                state_value - 1 + constants.COUNTER_MAX_STATE
+            ) % constants.COUNTER_MAX_STATE
+            toggle_bits = state_value ^ next_state
             expected = {
-                "T3": bool((t_vals >> 3) & 1),
-                "T2": bool((t_vals >> 2) & 1),
-                "T1": bool((t_vals >> 1) & 1),
-                "T0": bool(t_vals & 1),
+                "T3": bool((toggle_bits >> 3) & 1),
+                "T2": bool((toggle_bits >> 2) & 1),
+                "T1": bool((toggle_bits >> 1) & 1),
+                "T0": bool(toggle_bits & 1),
             }
-            for name, exp in expected.items():
-                got = eval_expr(eq_map[name], mapping)
-                self.assertEqual(got, exp)
+            for output_name, expected_value in expected.items():
+                got = eval_expr(eq_map[output_name], mapping)
+                self.assertEqual(got, expected_value)

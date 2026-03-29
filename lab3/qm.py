@@ -5,101 +5,103 @@ from typing import Iterable, List, Tuple
 from Implicant import Implicant
 
 
-def differ_by_one_bit(a: Implicant, b: Implicant) -> Tuple[bool, Implicant]:
-    if a.mask != b.mask:
+def differ_by_one_bit(first: Implicant, second: Implicant) -> Tuple[bool, Implicant]:
+    if first.mask != second.mask:
         return False, Implicant(0, 0)
-    diff = a.value ^ b.value
-    if diff != 0 and (diff & (diff - 1)) == 0:
-        merged = Implicant(value=a.value & ~diff, mask=a.mask | diff)
+    difference = first.value ^ second.value
+    if difference != 0 and (difference & (difference - 1)) == 0:
+        merged = Implicant(value=first.value & ~difference, mask=first.mask | difference)
         return True, merged
     return False, Implicant(0, 0)
 
 
-def generate_sdnf(num_vars: int, minterms: Iterable[int], var_names: List[str]) -> str:
-    minterms_list = list(minterms)
-    if not minterms_list:
+def generate_sdnf(variable_count: int, minterms: Iterable[int], variable_names: List[str]) -> str:
+    minterm_list = list(minterms)
+    if not minterm_list:
         return "0"
     parts = [
-        _format_implicant(Implicant(value=m, mask=0), num_vars, var_names)
-        for m in minterms_list
+        _format_implicant(Implicant(value=minterm, mask=0), variable_count, variable_names)
+        for minterm in minterm_list
     ]
     return " | ".join(parts)
 
 
 def minimize(
-    num_vars: int,
+    variable_count: int,
     minterms: Iterable[int],
     dont_cares: Iterable[int] | None,
-    var_names: List[str],
+    variable_names: List[str],
 ) -> str:
-    minterms_list = list(minterms)
-    if not minterms_list:
+    minterm_list = list(minterms)
+    if not minterm_list:
         return "0"
-    dont_cares_list = list(dont_cares or [])
-    primes = _find_prime_implicants(minterms_list, dont_cares_list)
-    essentials, remaining = _find_essential_primes(primes, minterms_list)
-    solution = _cover_remaining(remaining, primes, essentials)
-    return _format_solution(solution, num_vars, var_names)
+    dont_care_list = list(dont_cares or [])
+    prime_implicants = _find_prime_implicants(minterm_list, dont_care_list)
+    essentials, remaining_minterms = _find_essential_primes(prime_implicants, minterm_list)
+    solution = _cover_remaining(remaining_minterms, prime_implicants, essentials)
+    return _format_solution(solution, variable_count, variable_names)
 
 
-def _find_prime_implicants(minterms: List[int], dont_cares: List[int]) -> List[Implicant]:
-    implicants = _init_implicants(minterms, dont_cares)
-    primes: dict[Implicant, bool] = {}
+def _find_prime_implicants(
+    minterms: List[int], dont_cares: List[int]
+) -> List[Implicant]:
+    current_level = _init_implicants(minterms, dont_cares)
+    prime_map: dict[Implicant, bool] = {}
 
-    while implicants:
+    while current_level:
         next_level: dict[Implicant, bool] = {}
-        used: dict[Implicant, bool] = {}
+        used_map: dict[Implicant, bool] = {}
 
-        for i, a in enumerate(implicants):
-            for j in range(i + 1, len(implicants)):
-                b = implicants[j]
-                can_merge, merged = differ_by_one_bit(a, b)
+        for left_index, left_implicant in enumerate(current_level):
+            for right_index in range(left_index + 1, len(current_level)):
+                right_implicant = current_level[right_index]
+                can_merge, merged = differ_by_one_bit(left_implicant, right_implicant)
                 if can_merge:
                     next_level[merged] = True
-                    used[a] = True
-                    used[b] = True
+                    used_map[left_implicant] = True
+                    used_map[right_implicant] = True
 
-        for imp in implicants:
-            if not used.get(imp, False):
-                primes[imp] = True
+        for implicant in current_level:
+            if not used_map.get(implicant, False):
+                prime_map[implicant] = True
 
-        implicants = list(next_level.keys())
+        current_level = list(next_level.keys())
 
-    return list(primes.keys())
+    return list(prime_map.keys())
 
 
 def _init_implicants(minterms: List[int], dont_cares: List[int]) -> List[Implicant]:
-    res = [Implicant(value=m, mask=0) for m in minterms]
-    res.extend(Implicant(value=m, mask=0) for m in dont_cares)
-    return res
+    implicants = [Implicant(value=minterm, mask=0) for minterm in minterms]
+    implicants.extend(Implicant(value=term, mask=0) for term in dont_cares)
+    return implicants
 
 
 def _find_essential_primes(
     primes: List[Implicant], minterms: List[int]
 ) -> Tuple[List[Implicant], List[int]]:
     essentials: List[Implicant] = []
-    covered: dict[int, bool] = {}
+    covered_map: dict[int, bool] = {}
 
-    for m in minterms:
-        covers = _get_covers(primes, m)
-        if len(covers) == 1:
-            essentials = _append_unique(essentials, covers[0])
+    for minterm in minterms:
+        covering = _get_covers(primes, minterm)
+        if len(covering) == 1:
+            essentials = _append_unique(essentials, covering[0])
 
-    for e in essentials:
-        for m in minterms:
-            if e.covers(m):
-                covered[m] = True
+    for essential in essentials:
+        for minterm in minterms:
+            if essential.covers(minterm):
+                covered_map[minterm] = True
 
-    remaining = [m for m in minterms if not covered.get(m, False)]
+    remaining = [minterm for minterm in minterms if not covered_map.get(minterm, False)]
     return essentials, remaining
 
 
 def _get_covers(primes: List[Implicant], minterm: int) -> List[Implicant]:
-    return [p for p in primes if p.covers(minterm)]
+    return [prime for prime in primes if prime.covers(minterm)]
 
 
 def _append_unique(items: List[Implicant], item: Implicant) -> List[Implicant]:
-    if any(x.is_equal(item) for x in items):
+    if any(existing.is_equal(item) for existing in items):
         return items
     return items + [item]
 
@@ -113,41 +115,45 @@ def _cover_remaining(
     uncovered = list(remaining)
 
     while uncovered:
-        best = _find_best_prime(primes, uncovered)
-        solution.append(best)
-        uncovered = [m for m in uncovered if not best.covers(m)]
+        best_prime = _find_best_prime(primes, uncovered)
+        solution.append(best_prime)
+        uncovered = [minterm for minterm in uncovered if not best_prime.covers(minterm)]
 
     return solution
 
 
 def _find_best_prime(primes: List[Implicant], uncovered: List[int]) -> Implicant:
     best_count = -1
-    best = primes[0]
-    for p in primes:
-        count = sum(1 for m in uncovered if p.covers(m))
-        if count > best_count:
-            best_count = count
-            best = p
-    return best
+    best_prime = primes[0]
+    for prime in primes:
+        covered_count = sum(1 for minterm in uncovered if prime.covers(minterm))
+        if covered_count > best_count:
+            best_count = covered_count
+            best_prime = prime
+    return best_prime
 
 
-def _format_solution(solution: List[Implicant], num_vars: int, var_names: List[str]) -> str:
+def _format_solution(
+    solution: List[Implicant], variable_count: int, variable_names: List[str]
+) -> str:
     parts: List[str] = []
-    full_mask = (1 << num_vars) - 1
-    for imp in solution:
-        if imp.mask == full_mask:
+    full_mask = (1 << variable_count) - 1
+    for implicant in solution:
+        if implicant.mask == full_mask:
             return "1"
-        parts.append(_format_implicant(imp, num_vars, var_names))
+        parts.append(_format_implicant(implicant, variable_count, variable_names))
     return " | ".join(parts)
 
 
-def _format_implicant(imp: Implicant, num_vars: int, var_names: List[str]) -> str:
+def _format_implicant(
+    implicant: Implicant, variable_count: int, variable_names: List[str]
+) -> str:
     parts: List[str] = []
-    for i in range(num_vars):
-        bit_pos = num_vars - 1 - i
-        if ((imp.mask >> bit_pos) & 1) == 0:
-            if ((imp.value >> bit_pos) & 1) == 1:
-                parts.append(var_names[i])
+    for var_index in range(variable_count):
+        bit_position = variable_count - 1 - var_index
+        if ((implicant.mask >> bit_position) & 1) == 0:
+            if ((implicant.value >> bit_position) & 1) == 1:
+                parts.append(variable_names[var_index])
             else:
-                parts.append("!" + var_names[i])
+                parts.append("!" + variable_names[var_index])
     return "(" + " & ".join(parts) + ")"

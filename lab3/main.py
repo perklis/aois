@@ -3,13 +3,15 @@ from __future__ import annotations
 import circuits
 
 
-def _print_equations(title: str, equations, show_sdnf: bool = False) -> None:
-    print(title)
-    for eq in equations:
-        if show_sdnf:
-            print(f"{eq.name}:\nSDNF: {eq.sdnf}\nMinimized: {eq.minimized}\n")
+def _print_equations(section_title: str, equation_list, include_sdnf: bool = False) -> None:
+    print(section_title)
+    for equation in equation_list:
+        if include_sdnf:
+            print(
+                f"{equation.name}:\nSDNF: {equation.sdnf}\nMinimized: {equation.minimized}\n"
+            )
         else:
-            print(f"{eq.name} = {eq.minimized}")
+            print(f"{equation.name} = {equation.minimized}")
     print()
 
 

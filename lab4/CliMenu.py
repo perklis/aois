@@ -1,32 +1,36 @@
-from HashTable import HashTable
-from TablePrinter import TablePrinter
+try:
+    from .HashTable import HashTable
+    from .TablePrinter import TablePrinter
+except ImportError:  # fallback for direct execution
+    from HashTable import HashTable
+    from TablePrinter import TablePrinter
 
 
 class CliMenu:
     def __init__(self) -> None:
-        self._table = HashTable()
-        self._printer = TablePrinter()
+        self._hash_table = HashTable()
+        self._table_printer = TablePrinter()
 
     def run(self) -> None:
         self._maybe_resize()
         while True:
             self._print_menu()
-            choice = input("Выберите пункт: ").strip()
-            if choice == "1":
+            menu_choice = input("Выберите пункт: ").strip()
+            if menu_choice == "1":
                 self._insert()
-            elif choice == "2":
+            elif menu_choice == "2":
                 self._find()
-            elif choice == "3":
+            elif menu_choice == "3":
                 self._update()
-            elif choice == "4":
+            elif menu_choice == "4":
                 self._delete()
-            elif choice == "5":
-                self._printer.print_table(self._table)
-            elif choice == "6":
-                print(f"Коэффициент заполнения: {self._table.load_factor():.2f}")
-            elif choice == "7":
+            elif menu_choice == "5":
+                self._table_printer.print_table(self._hash_table)
+            elif menu_choice == "6":
+                print(f"Коэффициент заполнения: {self._hash_table.load_factor():.2f}")
+            elif menu_choice == "7":
                 self._show_v_h()
-            elif choice == "0":
+            elif menu_choice == "0":
                 print("Выход.")
                 break
             else:
@@ -44,57 +48,59 @@ class CliMenu:
         print("0. Выход")
 
     def _maybe_resize(self) -> None:
-        raw = input(f"Размер таблицы (по умолчанию {self._table.size}): ").strip()
-        if not raw:
+        raw_value = input(
+            f"Размер таблицы (по умолчанию {self._hash_table.size}): "
+        ).strip()
+        if not raw_value:
             return
         try:
-            size = int(raw)
-            self._table = HashTable(size=size)
+            table_size = int(raw_value)
+            self._hash_table = HashTable(size=table_size)
         except ValueError:
             print("Некорректный размер, используется значение по умолчанию.")
 
     def _insert(self) -> None:
-        key = input("Ключ (ID): ").strip()
-        value = input("Данные (Pi): ").strip()
+        identifier = input("Ключ (ID): ").strip()
+        payload = input("Данные (Pi): ").strip()
         try:
-            self._table.insert(key, value)
+            self._hash_table.insert(identifier, payload)
             print("Запись добавлена.")
         except (KeyError, OverflowError, ValueError, TypeError) as exc:
             print(f"Ошибка: {exc}")
 
     def _find(self) -> None:
-        key = input("Ключ (ID): ").strip()
+        identifier = input("Ключ (ID): ").strip()
         try:
-            value = self._table.get(key)
-            v_value = self._table.calculate_v(key)
-            h_value = self._table.calculate_h(key)
-            print(f"Найдено: Pi={value}, V(K)={v_value}, h(V)={h_value}")
+            payload = self._hash_table.get(identifier)
+            numeric_value = self._hash_table.calculate_value(identifier)
+            hash_address = self._hash_table.calculate_address(identifier)
+            print(f"Найдено: Pi={payload}, V(K)={numeric_value}, h(V)={hash_address}")
         except (KeyError, ValueError, TypeError) as exc:
             print(f"Ошибка: {exc}")
 
     def _update(self) -> None:
-        key = input("Ключ (ID): ").strip()
-        value = input("Новые данные (Pi): ").strip()
+        identifier = input("Ключ (ID): ").strip()
+        payload = input("Новые данные (Pi): ").strip()
         try:
-            self._table.update(key, value)
+            self._hash_table.update(identifier, payload)
             print("Запись обновлена.")
         except (KeyError, ValueError, TypeError) as exc:
             print(f"Ошибка: {exc}")
 
     def _delete(self) -> None:
-        key = input("Ключ (ID): ").strip()
+        identifier = input("Ключ (ID): ").strip()
         try:
-            self._table.delete(key)
+            self._hash_table.delete(identifier)
             print("Запись удалена.")
         except (KeyError, ValueError, TypeError) as exc:
             print(f"Ошибка: {exc}")
 
     def _show_v_h(self) -> None:
-        key = input("Ключ (ID): ").strip()
+        identifier = input("Ключ (ID): ").strip()
         try:
-            v_value = self._table.calculate_v(key)
-            h_value = self._table.calculate_h(key)
-            print(f"V(K)={v_value}, h(V)={h_value}")
+            numeric_value = self._hash_table.calculate_value(identifier)
+            hash_address = self._hash_table.calculate_address(identifier)
+            print(f"V(K)={numeric_value}, h(V)={hash_address}")
         except (ValueError, TypeError) as exc:
             print(f"Ошибка: {exc}")
 

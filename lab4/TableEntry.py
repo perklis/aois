@@ -4,8 +4,8 @@ from typing import Any, Optional
 
 @dataclass
 class TableEntry:
-    key: str
-    value: Any
-    collision_flag: int  # C
-    occupied_flag: int  # U
-    deleted_flag: int  # D
+    identifier: str
+    payload: Any
+    has_collision: int  # C
+    is_occupied: int  # U
+    is_deleted: int  # D
